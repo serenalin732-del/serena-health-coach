@@ -13,27 +13,25 @@ npm run test:coverage
 
 The Expo web export (`npm run build:web`) produces a static single-page app in
 `dist/`, ready to host on [Cloudflare Pages](https://developers.cloudflare.com/pages/).
-Config lives in `wrangler.toml`; SPA routing is handled by `public/_redirects`
-(copied to `dist/_redirects` on export).
+SPA routing is handled by `public/_redirects` (copied to `dist/_redirects` on export).
 
-### Option A — Connect the Git repo (recommended)
+### Automatic deploys (GitHub Actions)
 
-1. Cloudflare dashboard → **Workers & Pages** → **Create** → **Pages** →
-   **Connect to Git**, and pick this repository.
-2. Set the build configuration:
-   - **Build command:** `npm run build:web`
-   - **Build output directory:** `dist`
-   - **Node version:** picked up automatically from `.nvmrc` (22)
-3. Add your runtime env vars under **Settings → Environment variables**:
-   - `EXPO_PUBLIC_SUPABASE_URL`
-   - `EXPO_PUBLIC_SUPABASE_ANON_KEY`
-4. Deploy. Pushes to the production branch redeploy automatically.
+Pushes to `main` build and deploy automatically via
+`.github/workflows/deploy.yml` (using `wrangler`, independent of Cloudflare's
+Git integration). It requires four repository secrets under
+**Settings → Secrets and variables → Actions**:
 
-### Option B — Deploy from the CLI
+- `CLOUDFLARE_API_TOKEN` — token with **Account → Cloudflare Pages → Edit**
+- `CLOUDFLARE_ACCOUNT_ID`
+- `EXPO_PUBLIC_SUPABASE_URL`
+- `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+
+### Manual deploy from the CLI
 
 ```bash
 npm run build:web
-npx wrangler pages deploy dist
+npx wrangler pages deploy dist --project-name=serena-health-coach
 ```
 
 Requires a Cloudflare API token + account ID (`wrangler login`, or the
