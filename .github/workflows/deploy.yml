@@ -1,0 +1,51 @@
+name: Deploy to Cloudflare Pages
+
+# Builds the Expo web export and deploys it to Cloudflare Pages on every push
+# to main. Uses wrangler directly, so it does not depend on Cloudflare's Git
+# integration being connected. Can also be run manually from the Actions tab.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Never run two production deploys at once; cancel an in-progress one if a
+# newer commit lands.
+concurrency:
+  group: deploy-cloudflare-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check and test
+        run: |
+          npm run typecheck
+          npm test
+
+      - name: Build web export
+        run: npm run build:web
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Project name and output dir (dist) come from wrangler.toml.
+          # --branch=main marks this as a production deployment.
+          command: pages deploy --branch=main
