@@ -35,8 +35,35 @@ import { InputField, PrimaryButton } from '@/components/Inputs';
 import { useDailyLog } from '@/hooks/useDailyLog';
 import { useAuth } from '@/hooks/useAuth';
 import { HABITS } from '@/lib/types';
-import { todayStr, formatFullDate } from '@/lib/utils';
+import {
+  todayStr,
+  formatFullDate,
+  sanitizeDecimalInput,
+  sanitizeIntegerInput,
+  parseNumericInput,
+} from '@/lib/utils';
 import type { DailyLog } from '@/lib/types';
+
+type MetricForm = {
+  weight_kg: string;
+  waist_cm: string;
+  body_fat_pct: string;
+  steps: string;
+  water_ml: string;
+  protein_g: string;
+};
+
+const EMPTY_METRIC_FORM: MetricForm = {
+  weight_kg: '',
+  waist_cm: '',
+  body_fat_pct: '',
+  steps: '',
+  water_ml: '',
+  protein_g: '',
+};
+
+const numToStr = (v: number | null | undefined): string =>
+  v === null || v === undefined ? '' : String(v);
 
 const HABIT_ICONS: Record<string, React.ReactNode> = {
   protein_90g: <Dumbbell size={16} color={COLORS.rosePrimary} />,
@@ -55,23 +82,31 @@ export default function DashboardScreen() {
   const today = todayStr();
   const { log, habits, loading, saving, saveLog, toggleHabit, completedCount, totalHabits, completionPct, dailyScore, refresh } = useDailyLog(userId, today);
   const [showEdit, setShowEdit] = useState(false);
-  const [form, setForm] = useState<Partial<DailyLog>>({});
+  const [form, setForm] = useState<MetricForm>(EMPTY_METRIC_FORM);
   const [refreshing, setRefreshing] = useState(false);
 
   const openEdit = () => {
     setForm({
-      weight_kg: log?.weight_kg ?? undefined,
-      waist_cm: log?.waist_cm ?? undefined,
-      body_fat_pct: log?.body_fat_pct ?? undefined,
-      steps: log?.steps ?? undefined,
-      water_ml: log?.water_ml ?? undefined,
-      protein_g: log?.protein_g ?? undefined,
+      weight_kg: numToStr(log?.weight_kg),
+      waist_cm: numToStr(log?.waist_cm),
+      body_fat_pct: numToStr(log?.body_fat_pct),
+      steps: numToStr(log?.steps),
+      water_ml: numToStr(log?.water_ml),
+      protein_g: numToStr(log?.protein_g),
     });
     setShowEdit(true);
   };
 
   const handleSave = async () => {
-    await saveLog(form);
+    const updates: Partial<DailyLog> = {
+      weight_kg: parseNumericInput(form.weight_kg),
+      waist_cm: parseNumericInput(form.waist_cm),
+      body_fat_pct: parseNumericInput(form.body_fat_pct),
+      steps: parseNumericInput(form.steps),
+      water_ml: parseNumericInput(form.water_ml),
+      protein_g: parseNumericInput(form.protein_g),
+    };
+    await saveLog(updates);
     setShowEdit(false);
   };
 
@@ -229,47 +264,47 @@ export default function DashboardScreen() {
       <ModalSheet visible={showEdit} onClose={() => setShowEdit(false)} title="Log Today's Metrics">
         <InputField
           label="Weight"
-          value={form.weight_kg !== undefined ? String(form.weight_kg) : ''}
-          onChangeText={v => setForm(f => ({ ...f, weight_kg: v ? parseFloat(v) : undefined }))}
+          value={form.weight_kg}
+          onChangeText={v => setForm(f => ({ ...f, weight_kg: sanitizeDecimalInput(v) }))}
           keyboardType="decimal-pad"
           unit="kg"
           placeholder="e.g. 68.5"
         />
         <InputField
           label="Waist Circumference"
-          value={form.waist_cm !== undefined ? String(form.waist_cm) : ''}
-          onChangeText={v => setForm(f => ({ ...f, waist_cm: v ? parseFloat(v) : undefined }))}
+          value={form.waist_cm}
+          onChangeText={v => setForm(f => ({ ...f, waist_cm: sanitizeDecimalInput(v) }))}
           keyboardType="decimal-pad"
           unit="cm"
           placeholder="e.g. 78"
         />
         <InputField
           label="Body Fat"
-          value={form.body_fat_pct !== undefined ? String(form.body_fat_pct) : ''}
-          onChangeText={v => setForm(f => ({ ...f, body_fat_pct: v ? parseFloat(v) : undefined }))}
+          value={form.body_fat_pct}
+          onChangeText={v => setForm(f => ({ ...f, body_fat_pct: sanitizeDecimalInput(v) }))}
           keyboardType="decimal-pad"
           unit="%"
           placeholder="e.g. 28"
         />
         <InputField
           label="Steps"
-          value={form.steps !== undefined ? String(form.steps) : ''}
-          onChangeText={v => setForm(f => ({ ...f, steps: v ? parseInt(v) : undefined }))}
+          value={form.steps}
+          onChangeText={v => setForm(f => ({ ...f, steps: sanitizeIntegerInput(v) }))}
           keyboardType="number-pad"
           placeholder="e.g. 8500"
         />
         <InputField
           label="Water"
-          value={form.water_ml !== undefined ? String(form.water_ml) : ''}
-          onChangeText={v => setForm(f => ({ ...f, water_ml: v ? parseInt(v) : undefined }))}
+          value={form.water_ml}
+          onChangeText={v => setForm(f => ({ ...f, water_ml: sanitizeIntegerInput(v) }))}
           keyboardType="number-pad"
           unit="ml"
           placeholder="e.g. 2000"
         />
         <InputField
           label="Protein"
-          value={form.protein_g !== undefined ? String(form.protein_g) : ''}
-          onChangeText={v => setForm(f => ({ ...f, protein_g: v ? parseFloat(v) : undefined }))}
+          value={form.protein_g}
+          onChangeText={v => setForm(f => ({ ...f, protein_g: sanitizeDecimalInput(v) }))}
           keyboardType="decimal-pad"
           unit="g"
           placeholder="e.g. 95"

@@ -46,3 +46,30 @@ export function calcCycleDay(periodStart: string): number {
   const diff = Math.floor((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
   return Math.max(1, diff + 1);
 }
+
+// Sanitizes free text from a decimal-pad input: keeps digits and a single
+// decimal point. Returning the cleaned string (rather than a parsed number)
+// lets the field hold an in-progress value like "68." so the user can keep
+// typing the fractional part.
+export function sanitizeDecimalInput(text: string): string {
+  const cleaned = text.replace(/[^0-9.]/g, '');
+  const firstDot = cleaned.indexOf('.');
+  if (firstDot === -1) return cleaned;
+  // Keep the first dot, drop any subsequent ones.
+  return cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, '');
+}
+
+// Sanitizes free text from a number-pad input: digits only.
+export function sanitizeIntegerInput(text: string): string {
+  return text.replace(/[^0-9]/g, '');
+}
+
+// Parses sanitized numeric input into a number, or null when it is empty or
+// not a finite number. Uses Number() (not parseFloat) so partial junk like
+// "12abc" becomes null instead of silently parsing to 12.
+export function parseNumericInput(text: string): number | null {
+  const trimmed = text.trim();
+  if (trimmed === '' || trimmed === '.') return null;
+  const n = Number(trimmed);
+  return Number.isFinite(n) ? n : null;
+}

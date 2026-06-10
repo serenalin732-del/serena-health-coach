@@ -15,7 +15,7 @@ import { ModalSheet } from '@/components/UI';
 import { InputField, PrimaryButton } from '@/components/Inputs';
 import { useMeals } from '@/hooks/useMeals';
 import { useAuth } from '@/hooks/useAuth';
-import { todayStr } from '@/lib/utils';
+import { todayStr, sanitizeDecimalInput, parseNumericInput } from '@/lib/utils';
 import type { MealLog } from '@/lib/types';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -51,10 +51,10 @@ export default function FoodScreen() {
       log_date: today,
       meal_type: mealType,
       food_name: form.food_name.trim(),
-      calories: form.calories ? parseFloat(form.calories) : null,
-      protein_g: form.protein_g ? parseFloat(form.protein_g) : null,
-      carbs_g: form.carbs_g ? parseFloat(form.carbs_g) : null,
-      fat_g: form.fat_g ? parseFloat(form.fat_g) : null,
+      calories: parseNumericInput(form.calories),
+      protein_g: parseNumericInput(form.protein_g),
+      carbs_g: parseNumericInput(form.carbs_g),
+      fat_g: parseNumericInput(form.fat_g),
       notes: null,
     });
     setSaving(false);
@@ -121,7 +121,7 @@ export default function FoodScreen() {
         <InputField
           label="Calories"
           value={form.calories}
-          onChangeText={v => setForm(f => ({ ...f, calories: v }))}
+          onChangeText={v => setForm(f => ({ ...f, calories: sanitizeDecimalInput(v) }))}
           keyboardType="decimal-pad"
           unit="kcal"
           placeholder="e.g. 150"
@@ -129,7 +129,7 @@ export default function FoodScreen() {
         <InputField
           label="Protein"
           value={form.protein_g}
-          onChangeText={v => setForm(f => ({ ...f, protein_g: v }))}
+          onChangeText={v => setForm(f => ({ ...f, protein_g: sanitizeDecimalInput(v) }))}
           keyboardType="decimal-pad"
           unit="g"
           placeholder="e.g. 17"
@@ -137,7 +137,7 @@ export default function FoodScreen() {
         <InputField
           label="Carbohydrates"
           value={form.carbs_g}
-          onChangeText={v => setForm(f => ({ ...f, carbs_g: v }))}
+          onChangeText={v => setForm(f => ({ ...f, carbs_g: sanitizeDecimalInput(v) }))}
           keyboardType="decimal-pad"
           unit="g"
           placeholder="e.g. 8"
@@ -145,7 +145,7 @@ export default function FoodScreen() {
         <InputField
           label="Fat"
           value={form.fat_g}
-          onChangeText={v => setForm(f => ({ ...f, fat_g: v }))}
+          onChangeText={v => setForm(f => ({ ...f, fat_g: sanitizeDecimalInput(v) }))}
           keyboardType="decimal-pad"
           unit="g"
           placeholder="e.g. 4"
