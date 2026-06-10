@@ -41,6 +41,14 @@ jobs:
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
 
+      # wrangler honors .gitignore, which ignores `node_modules/`. Expo writes
+      # font/image assets to dist/assets/node_modules/..., so those paths would
+      # be skipped — leaving the app with no fonts and a blank screen (the root
+      # layout renders null until fonts load). An empty .assetsignore makes
+      # wrangler ignore nothing and upload the entire dist/ tree.
+      - name: Upload all build output (override .gitignore)
+        run: printf '# upload all build output\n' > dist/.assetsignore
+
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
