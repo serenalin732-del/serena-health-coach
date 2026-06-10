@@ -41,14 +41,18 @@ jobs:
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
 
-      # wrangler pages deploy applies the working-directory .gitignore to the
-      # files it uploads. Our .gitignore ignores `node_modules/`, and Expo
-      # writes font/image assets to dist/assets/node_modules/..., so every font
-      # was being skipped — leaving the app with no fonts and a blank screen
-      # (the root layout renders null until fonts load). CI is ephemeral, so
-      # remove .gitignore before deploying to upload the whole dist/ tree.
-      - name: Remove .gitignore so wrangler uploads all assets
-        run: rm -f .gitignore
+      # Cloudflare Pages / wrangler silently skip any directory named
+      # `node_modules`. Expo nests web assets under dist/assets/node_modules/...,
+      # so every font was excluded from the deploy and the app rendered a blank
+      # screen (the root layout returns null until useFonts resolves). Rename
+      # that directory and rewrite the references in the build output so the
+      # fonts are uploaded and resolve correctly.
+      - name: Rename node_modules assets for Cloudflare Pages
+        run: |
+          if [ -d dist/assets/node_modules ]; then
+            mv dist/assets/node_modules dist/assets/node_deps
+            grep -rl 'assets/node_modules' dist | xargs --no-run-if-empty sed -i 's#assets/node_modules#assets/node_deps#g'
+          fi
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
