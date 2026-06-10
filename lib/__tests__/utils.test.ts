@@ -7,6 +7,9 @@ import {
   formatDisplayDate,
   formatFullDate,
   calcCycleDay,
+  sanitizeDecimalInput,
+  sanitizeIntegerInput,
+  parseNumericInput,
 } from '../utils';
 
 describe('formatDate', () => {
@@ -132,5 +135,61 @@ describe('calcCycleDay', () => {
   it('handles starts that cross a month boundary', () => {
     // May 31 -> Jun 10 is 10 days elapsed = cycle day 11
     expect(calcCycleDay('2026-05-31')).toBe(11);
+  });
+});
+
+describe('sanitizeDecimalInput', () => {
+  it('passes through a plain decimal', () => {
+    expect(sanitizeDecimalInput('68.5')).toBe('68.5');
+  });
+
+  it('keeps a trailing dot so the fractional part can still be typed', () => {
+    // This is the core fix: "68." must survive a keystroke.
+    expect(sanitizeDecimalInput('68.')).toBe('68.');
+  });
+
+  it('strips non-numeric characters', () => {
+    expect(sanitizeDecimalInput('12abc')).toBe('12');
+    expect(sanitizeDecimalInput('1a.2b')).toBe('1.2');
+  });
+
+  it('collapses multiple dots to a single decimal point', () => {
+    expect(sanitizeDecimalInput('1.2.3')).toBe('1.23');
+    expect(sanitizeDecimalInput('..5')).toBe('.5');
+  });
+
+  it('returns an empty string for fully invalid input', () => {
+    expect(sanitizeDecimalInput('abc')).toBe('');
+  });
+});
+
+describe('sanitizeIntegerInput', () => {
+  it('keeps digits only', () => {
+    expect(sanitizeIntegerInput('8500')).toBe('8500');
+    expect(sanitizeIntegerInput('85.5')).toBe('855');
+    expect(sanitizeIntegerInput('12abc')).toBe('12');
+  });
+});
+
+describe('parseNumericInput', () => {
+  it('parses a valid number', () => {
+    expect(parseNumericInput('68.5')).toBe(68.5);
+    expect(parseNumericInput('0')).toBe(0);
+  });
+
+  it('returns null for empty or dot-only input', () => {
+    expect(parseNumericInput('')).toBeNull();
+    expect(parseNumericInput('   ')).toBeNull();
+    expect(parseNumericInput('.')).toBeNull();
+  });
+
+  it('returns null for non-numeric junk rather than silently truncating', () => {
+    // parseFloat('12abc') would return 12; we want null instead.
+    expect(parseNumericInput('12abc')).toBeNull();
+    expect(parseNumericInput('abc')).toBeNull();
+  });
+
+  it('tolerates a trailing dot', () => {
+    expect(parseNumericInput('68.')).toBe(68);
   });
 });
