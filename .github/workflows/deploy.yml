@@ -46,6 +46,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          # Project name and output dir (dist) come from wrangler.toml.
-          # --branch=main marks this as a production deployment.
-          command: pages deploy --branch=main
+          # Deploy the built `dist/` directory explicitly so the whole asset
+          # tree (the _expo JS bundle and assets/ fonts) is uploaded, not just
+          # the top-level files. --branch=main marks this a production deploy.
+          command: pages deploy dist --project-name=serena-health-coach --branch=main --commit-dirty=true
