@@ -1,0 +1,8 @@
+# Cloudflare Pages configuration for the Expo web export.
+# Connect the GitHub repo in the Cloudflare dashboard (Workers & Pages > Create
+# > Pages > Connect to Git) or deploy locally with: npx wrangler pages deploy
+name = "serena-health-coach"
+compatibility_date = "2025-06-10"
+
+# `npm run build:web` (expo export --platform web) writes the static site here.
+pages_build_output_dir = "dist"

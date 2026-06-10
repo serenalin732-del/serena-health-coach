@@ -1,0 +1,4 @@
+# SPA fallback: Expo Router (web output "single") is a client-side single-page
+# app, so any path that isn't a real static asset must serve index.html.
+# Cloudflare Pages serves existing files first, then applies this catch-all.
+/*    /index.html    200
