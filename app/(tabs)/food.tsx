@@ -8,12 +8,14 @@ import {
   TouchableOpacity,
   RefreshControl,
 } from 'react-native';
-import { Plus, Trash2, Coffee, Sun, Moon, Apple, Sparkles } from 'lucide-react-native';
+import { Plus, Trash2, Coffee, Sun, Moon, Apple, Sparkles, Camera, ChevronRight } from 'lucide-react-native';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOW } from '@/lib/theme';
 import { SectionCard } from '@/components/Cards';
 import { ModalSheet } from '@/components/UI';
 import { InputField, PrimaryButton } from '@/components/Inputs';
 import { useMeals } from '@/hooks/useMeals';
+import { useMealAnalysis, type MealEstimate } from '@/hooks/useMealAnalysis';
+import { pickMealImage } from '@/lib/imagePicker';
 import { useAuth } from '@/hooks/useAuth';
 import { todayStr, sanitizeDecimalInput, parseNumericInput } from '@/lib/utils';
 import type { MealLog } from '@/lib/types';
@@ -37,11 +39,50 @@ export default function FoodScreen() {
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [form, setForm] = useState({ food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '' });
+  const [aiDesc, setAiDesc] = useState('');
+  const [aiGrams, setAiGrams] = useState('');
+  const [aiNote, setAiNote] = useState('');
+  const analysis = useMealAnalysis();
 
   const openAdd = (type: MealType) => {
     setMealType(type);
     setForm({ food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '' });
+    setAiDesc('');
+    setAiGrams('');
+    setAiNote('');
     setShowAdd(true);
+  };
+
+  const applyEstimate = (e: MealEstimate) => {
+    setForm({
+      food_name: e.food_name || aiDesc.trim(),
+      calories: e.calories != null ? String(e.calories) : '',
+      protein_g: e.protein_g != null ? String(e.protein_g) : '',
+      carbs_g: e.carbs_g != null ? String(e.carbs_g) : '',
+      fat_g: e.fat_g != null ? String(e.fat_g) : '',
+    });
+    setAiNote(e.note || '');
+  };
+
+  const estimateFromText = async () => {
+    const result = await analysis.analyze({
+      meal_type: mealType,
+      description: aiDesc.trim() || undefined,
+      grams: aiGrams ? Number(aiGrams) : undefined,
+    });
+    if (result) applyEstimate(result);
+  };
+
+  const estimateFromPhoto = async () => {
+    const image = await pickMealImage();
+    if (!image) return; // cancelled or unsupported
+    const result = await analysis.analyze({
+      meal_type: mealType,
+      description: aiDesc.trim() || undefined,
+      grams: aiGrams ? Number(aiGrams) : undefined,
+      image,
+    });
+    if (result) applyEstimate(result);
   };
 
   const handleAdd = async () => {
@@ -87,14 +128,15 @@ export default function FoodScreen() {
           <MacroChip label="Fat" value={Math.round(totals.fat)} unit="g" color={COLORS.roseAccent} />
         </View>
 
-        {/* AI Placeholder */}
-        <View style={styles.aiCard}>
+        {/* AI Meal Analysis entry point */}
+        <TouchableOpacity style={styles.aiCard} activeOpacity={0.8} onPress={() => openAdd('snack')}>
           <Sparkles size={18} color={COLORS.rosePrimary} />
           <View style={{ flex: 1, marginLeft: SPACING.sm }}>
             <Text style={styles.aiTitle}>AI Meal Analysis</Text>
-            <Text style={styles.aiSub}>GPT integration coming soon — snap a photo to log your meal</Text>
+            <Text style={styles.aiSub}>Don't know the calories? Snap a photo or describe a meal and AI estimates it.</Text>
           </View>
-        </View>
+          <ChevronRight size={18} color={COLORS.roseAccent} />
+        </TouchableOpacity>
 
         {/* Meal Sections */}
         {(Object.keys(MEAL_CONFIG) as MealType[]).map(type => (
@@ -111,6 +153,37 @@ export default function FoodScreen() {
       </ScrollView>
 
       <ModalSheet visible={showAdd} onClose={() => setShowAdd(false)} title={`Add ${MEAL_CONFIG[mealType].label}`}>
+        {/* AI estimate */}
+        <View style={styles.aiBlock}>
+          <View style={styles.aiBlockHead}>
+            <Sparkles size={15} color={COLORS.rosePrimary} />
+            <Text style={styles.aiBlockTitle}>Estimate with AI</Text>
+          </View>
+          <InputField
+            label="Describe the food (optional)"
+            value={aiDesc}
+            onChangeText={setAiDesc}
+            placeholder="e.g. bowl of oatmeal with a banana"
+          />
+          <InputField
+            label="Approx. amount (optional)"
+            value={aiGrams}
+            onChangeText={v => setAiGrams(sanitizeDecimalInput(v))}
+            keyboardType="decimal-pad"
+            unit="g"
+            placeholder="e.g. 250"
+          />
+          <View style={styles.aiButtons}>
+            <PrimaryButton label="Estimate" onPress={estimateFromText} loading={analysis.loading} variant="secondary" style={styles.aiBtn} />
+            <TouchableOpacity onPress={estimateFromPhoto} disabled={analysis.loading} style={styles.photoBtn} activeOpacity={0.8}>
+              <Camera size={16} color={COLORS.sageDark} />
+              <Text style={styles.photoBtnText}>Photo</Text>
+            </TouchableOpacity>
+          </View>
+          {analysis.error && <Text style={styles.aiError}>{analysis.error}</Text>}
+          {aiNote ? <Text style={styles.aiNote}>{aiNote} — adjust the numbers below if needed.</Text> : null}
+        </View>
+
         <InputField
           label="Food Name"
           value={form.food_name}
@@ -282,6 +355,59 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.charcoalMuted,
     marginTop: 2,
+  },
+  aiBlock: {
+    backgroundColor: COLORS.roseBeigeLight,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.roseBeige,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  aiBlockHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: SPACING.sm,
+  },
+  aiBlockTitle: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 14,
+    color: COLORS.roseAccent,
+  },
+  aiButtons: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+  aiBtn: {
+    flex: 1,
+  },
+  photoBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: COLORS.sagePale,
+    borderRadius: RADIUS.xxl,
+    paddingVertical: 14,
+  },
+  photoBtnText: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 15,
+    color: COLORS.sageDark,
+  },
+  aiError: {
+    fontFamily: FONTS.regular,
+    fontSize: 12,
+    color: COLORS.error,
+    marginTop: SPACING.sm,
+  },
+  aiNote: {
+    fontFamily: FONTS.regular,
+    fontSize: 12,
+    color: COLORS.charcoalMed,
+    marginTop: SPACING.sm,
   },
   mealHeaderRight: {
     flexDirection: 'row',
