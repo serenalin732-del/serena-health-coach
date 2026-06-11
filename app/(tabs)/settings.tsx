@@ -18,6 +18,8 @@ import {
   Moon,
   Sun,
   Utensils,
+  Bell,
+  Mail,
 } from 'lucide-react-native';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOW } from '@/lib/theme';
 import { SectionCard } from '@/components/Cards';
@@ -25,36 +27,45 @@ import { ModalSheet } from '@/components/UI';
 import { InputField, PrimaryButton } from '@/components/Inputs';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
-import type { UserProfile, UserSettings } from '@/lib/types';
+import { useReminders, type ReminderKey } from '@/hooks/useReminders';
+import type { UserProfile } from '@/lib/types';
 
 export default function SettingsScreen() {
   const { user, signOut } = useAuth();
   const userId = user?.id ?? '';
   const onSignOut = signOut;
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [settings, setSettings] = useState<UserSettings | null>(null);
   const [showProfileEdit, setShowProfileEdit] = useState(false);
   const [profileForm, setProfileForm] = useState({ full_name: '', height_cm: '' });
   const [saving, setSaving] = useState(false);
+  const reminders = useReminders(userId);
 
   useEffect(() => {
-    const fetchData = async () => {
-      const [{ data: p }, { data: s }] = await Promise.all([
-        supabase.from('user_profiles').select('*').eq('id', userId).maybeSingle(),
-        supabase.from('user_settings').select('*').eq('user_id', userId).maybeSingle(),
-      ]);
-      setProfile(p as UserProfile | null);
-      setSettings(s as UserSettings | null);
-    };
-    fetchData();
+    supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle()
+      .then(({ data }) => setProfile(data as UserProfile | null));
   }, [userId]);
 
-  const toggleReminder = async (key: keyof Pick<UserSettings, 'reminder_morning' | 'reminder_lunch' | 'reminder_evening'>) => {
-    const newVal = !(settings?.[key] ?? true);
-    const updated = { ...(settings ?? { user_id: userId, reminder_morning: true, reminder_lunch: true, reminder_evening: true }), [key]: newVal };
-    setSettings(updated as UserSettings);
-    await supabase.from('user_settings').upsert({ ...updated, user_id: userId }, { onConflict: 'user_id' });
+  const toggleReminder = (key: ReminderKey) => reminders.toggle(key);
+
+  const togglePush = async (enabled: boolean) => {
+    const result = await reminders.setPushEnabled(enabled);
+    if (result === 'denied') {
+      Alert.alert('Notifications blocked', 'Enable notifications for this site in your browser settings, then try again.');
+    } else if (result === 'unsupported') {
+      Alert.alert('Not supported here', 'Open the app in a browser (and add it to your Home Screen on iOS) to enable push notifications.');
+    } else if (result === 'misconfigured') {
+      Alert.alert('Almost there', 'Push is not configured yet (missing VAPID key). Email reminders still work.');
+    } else if (result === 'error') {
+      Alert.alert('Something went wrong', 'Could not enable push notifications. Please try again.');
+    }
   };
+
+  const toggleEmail = (enabled: boolean) =>
+    reminders.setEmailReminders(enabled, profile?.email ?? null);
 
   const openProfileEdit = () => {
     setProfileForm({ full_name: profile?.full_name ?? '', height_cm: profile?.height_cm ? String(profile.height_cm) : '' });
@@ -107,7 +118,7 @@ export default function SettingsScreen() {
             icon={<Sun size={18} color={COLORS.warning} />}
             label="Morning Check-in"
             sublabel="Start your day right"
-            value={settings?.reminder_morning ?? true}
+            value={reminders.settings.reminder_morning ?? true}
             onToggle={() => toggleReminder('reminder_morning')}
             color={COLORS.warningLight}
           />
@@ -115,7 +126,7 @@ export default function SettingsScreen() {
             icon={<Utensils size={18} color={COLORS.rosePrimary} />}
             label="Lunch Reminder"
             sublabel="Track your midday meal"
-            value={settings?.reminder_lunch ?? true}
+            value={reminders.settings.reminder_lunch ?? true}
             onToggle={() => toggleReminder('reminder_lunch')}
             color={COLORS.roseBeigeLight}
           />
@@ -123,8 +134,29 @@ export default function SettingsScreen() {
             icon={<Moon size={18} color={COLORS.sageDark} />}
             label="Evening Check-in"
             sublabel="Review your day"
-            value={settings?.reminder_evening ?? true}
+            value={reminders.settings.reminder_evening ?? true}
             onToggle={() => toggleReminder('reminder_evening')}
+            color={COLORS.sagePale}
+          />
+        </SectionCard>
+
+        {/* Notification delivery */}
+        <SectionCard title="Notifications">
+          <ReminderRow
+            icon={<Bell size={18} color={COLORS.rosePrimary} />}
+            label="Push Notifications"
+            sublabel={reminders.pushSupported ? 'Get reminders on this device' : 'Add to Home Screen to enable'}
+            value={reminders.settings.push_enabled ?? false}
+            onToggle={() => togglePush(!(reminders.settings.push_enabled ?? false))}
+            color={COLORS.roseBeigeLight}
+            disabled={reminders.busy}
+          />
+          <ReminderRow
+            icon={<Mail size={18} color={COLORS.sageDark} />}
+            label="Email Reminders"
+            sublabel={profile?.email ? `Sent to ${profile.email}` : 'Add an email to your profile first'}
+            value={reminders.settings.email_reminders ?? false}
+            onToggle={() => toggleEmail(!(reminders.settings.email_reminders ?? false))}
             color={COLORS.sagePale}
           />
         </SectionCard>
@@ -173,8 +205,8 @@ export default function SettingsScreen() {
   );
 }
 
-function ReminderRow({ icon, label, sublabel, value, onToggle, color }: {
-  icon: React.ReactNode; label: string; sublabel: string; value: boolean; onToggle: () => void; color: string;
+function ReminderRow({ icon, label, sublabel, value, onToggle, color, disabled }: {
+  icon: React.ReactNode; label: string; sublabel: string; value: boolean; onToggle: () => void; color: string; disabled?: boolean;
 }) {
   return (
     <View style={styles.settingsRow}>
@@ -186,6 +218,7 @@ function ReminderRow({ icon, label, sublabel, value, onToggle, color }: {
       <Switch
         value={value}
         onValueChange={onToggle}
+        disabled={disabled}
         trackColor={{ false: COLORS.creamBorder, true: COLORS.rosePrimary }}
         thumbColor={COLORS.white}
       />
