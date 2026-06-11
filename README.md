@@ -55,7 +55,7 @@ The function auto-selects a provider. Use **either**:
 ```bash
 # Option A — OpenRouter (OpenAI-compatible; routes to many models)
 supabase secrets set OPENROUTER_API_KEY=sk-or-...
-supabase secrets set COACH_MODEL=anthropic/claude-3.5-sonnet   # any openrouter.ai/models slug
+supabase secrets set COACH_MODEL=openai/gpt-4o-mini            # any openrouter.ai/models slug
 
 # Option B — Anthropic direct
 supabase secrets set ANTHROPIC_API_KEY=sk-ant-...

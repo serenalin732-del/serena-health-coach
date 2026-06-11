@@ -4,7 +4,7 @@
 //
 // Provider is auto-selected:
 //   - If OPENROUTER_API_KEY is set  -> OpenRouter (OpenAI-compatible), model COACH_MODEL
-//     (default "anthropic/claude-3.5-sonnet" — change COACH_MODEL to any OpenRouter model).
+//     (default "openai/gpt-4o-mini" — change COACH_MODEL to any openrouter.ai/models slug).
 //   - Else if ANTHROPIC_API_KEY is set -> Anthropic direct, model COACH_MODEL
 //     (default "claude-opus-4-8").
 //   - Else -> ships gracefully disabled ({code:'not_configured'}).
@@ -88,7 +88,7 @@ function buildSummary(daily: DailyRow[], habits: HabitRow[]): string {
 }
 
 async function viaOpenRouter(apiKey: string, userPrompt: string): Promise<string> {
-  const model = Deno.env.get('COACH_MODEL') ?? 'anthropic/claude-3.5-sonnet';
+  const model = Deno.env.get('COACH_MODEL') ?? 'openai/gpt-4o-mini';
   const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -187,6 +187,9 @@ Deno.serve(async (req: Request) => {
 
     return json({ coaching: text });
   } catch (e) {
+    // Logged so failures (bad model slug, no credits, etc.) are visible in the
+    // function logs instead of just a generic client error.
+    console.error('coach error:', e instanceof Error ? (e.stack ?? e.message) : String(e));
     return json({ error: e instanceof Error ? e.message : String(e) }, 500);
   }
 });
