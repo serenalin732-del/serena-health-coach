@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Sparkles, RefreshCw } from 'lucide-react-native';
 import { COLORS, FONTS, SPACING, RADIUS } from '@/lib/theme';
+import { useI18n } from '@/lib/i18n';
 
 interface CoachCardProps {
   coaching: string | null;
@@ -12,11 +13,12 @@ interface CoachCardProps {
 }
 
 export function CoachCard({ coaching, loading, error, configured, onGenerate }: CoachCardProps) {
+  const { t } = useI18n();
   return (
     <View style={styles.card}>
       <View style={styles.header}>
         <Sparkles size={18} color={COLORS.rosePrimary} />
-        <Text style={styles.title}>Daily Coaching</Text>
+        <Text style={styles.title}>{t('Daily Coaching')}</Text>
         {coaching && !loading && (
           <TouchableOpacity onPress={onGenerate} style={styles.refresh} accessibilityLabel="Refresh coaching">
             <RefreshCw size={15} color={COLORS.charcoalMuted} />
@@ -27,27 +29,25 @@ export function CoachCard({ coaching, loading, error, configured, onGenerate }: 
       {loading ? (
         <View style={styles.row}>
           <ActivityIndicator color={COLORS.rosePrimary} />
-          <Text style={styles.muted}>Reading your week…</Text>
+          <Text style={styles.muted}>{t('Reading your week…')}</Text>
         </View>
       ) : !configured ? (
-        <Text style={styles.muted}>
-          AI coaching turns on once your Anthropic key is configured.
-        </Text>
+        <Text style={styles.muted}>{t('AI coaching turns on once the AI key is configured.')}</Text>
       ) : error ? (
         <View>
-          <Text style={styles.error}>{error}</Text>
+          <Text style={styles.error}>{t(error)}</Text>
           <TouchableOpacity onPress={onGenerate} style={styles.btn}>
-            <Text style={styles.btnText}>Try again</Text>
+            <Text style={styles.btnText}>{t('Try again')}</Text>
           </TouchableOpacity>
         </View>
       ) : coaching ? (
         <Text style={styles.body}>{coaching}</Text>
       ) : (
         <View>
-          <Text style={styles.sub}>Get a quick, personal read on your week based on what you've logged.</Text>
+          <Text style={styles.sub}>{t("Get a quick, personal read on your week based on what you've logged.")}</Text>
           <TouchableOpacity onPress={onGenerate} style={styles.btn}>
             <Sparkles size={15} color={COLORS.white} />
-            <Text style={styles.btnText}>Coach me</Text>
+            <Text style={styles.btnText}>{t('Coach me')}</Text>
           </TouchableOpacity>
         </View>
       )}

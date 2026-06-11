@@ -4,6 +4,7 @@ import { Svg, Polyline, Line, Text as SvgText, Circle, Path, Defs, LinearGradien
 import { COLORS, FONTS, SPACING, RADIUS } from '@/lib/theme';
 import type { TrendDataPoint } from '@/hooks/useTrends';
 import { formatDisplayDate } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CHART_PADDING = 40;
@@ -18,6 +19,7 @@ interface LineChartProps {
 }
 
 export function LineChart({ data, color = COLORS.rosePrimary, label, unit, loading, gradientId = 'grad1' }: LineChartProps) {
+  const { t } = useI18n();
   const chartWidth = SCREEN_WIDTH - SPACING.md * 4;
   const chartHeight = 160;
   const padLeft = 44;
@@ -40,7 +42,7 @@ export function LineChart({ data, color = COLORS.rosePrimary, label, unit, loadi
   if (validData.length === 0) {
     return (
       <View style={[styles.chartWrap, { height: chartHeight + 40 }]}>
-        <Text style={styles.emptyText}>No data yet</Text>
+        <Text style={styles.emptyText}>{t('No data yet')}</Text>
       </View>
     );
   }
@@ -111,6 +113,7 @@ interface BarChartProps {
 }
 
 export function BarChart({ data, color = COLORS.sage, label, unit, maxValue, loading }: BarChartProps) {
+  const { t } = useI18n();
   const chartWidth = SCREEN_WIDTH - SPACING.md * 4;
   const chartHeight = 160;
   const padLeft = 44;
@@ -133,7 +136,7 @@ export function BarChart({ data, color = COLORS.sage, label, unit, maxValue, loa
   if (validData.length === 0) {
     return (
       <View style={[styles.chartWrap, { height: chartHeight + 40 }]}>
-        <Text style={styles.emptyText}>No data yet</Text>
+        <Text style={styles.emptyText}>{t('No data yet')}</Text>
       </View>
     );
   }

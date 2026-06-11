@@ -54,6 +54,15 @@ export function calcCycleDay(periodStart: string): number {
   return Math.max(1, diff + 1);
 }
 
+// Cycle day on a specific date (e.g. when viewing a past day). Returns null
+// when the date is before the period started.
+export function cycleDayOn(periodStart: string, dateStr: string): number | null {
+  const start = parseDate(periodStart);
+  const date = parseDate(dateStr);
+  const diff = Math.round((date.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  return diff >= 0 ? diff + 1 : null;
+}
+
 // Sanitizes free text from a decimal-pad input: keeps digits and a single
 // decimal point. Returning the cleaned string (rather than a parsed number)
 // lets the field hold an in-progress value like "68." so the user can keep

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Minus, Plus, Check, TrendingDown, TrendingUp, Minus as Flat } from 'lucide-react-native';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOW } from '@/lib/theme';
+import { useI18n } from '@/lib/i18n';
 
 // ---------------------------------------------------------------------------
 // One-tap quick log: tap − / + to adjust and it auto-saves (debounced), so a
@@ -34,6 +35,7 @@ function QuickLogRow({
   accent,
   onCommit,
 }: QuickLogRowProps) {
+  const { t } = useI18n();
   const [draft, setDraft] = useState<number | null>(value);
   const [state, setState] = useState<SaveState>('idle');
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -80,7 +82,7 @@ function QuickLogRow({
           {state === 'saved' && (
             <>
               <Check size={12} color={COLORS.success} />
-              <Text style={styles.qlSaved}>Saved</Text>
+              <Text style={styles.qlSaved}>{t('Saved')}</Text>
             </>
           )}
         </View>
@@ -116,14 +118,15 @@ export function QuickLogCard({
   latestWaist,
   onLogWeight,
   onLogWaist,
-  subtitle = 'Tap to log today — saves instantly',
+  subtitle,
 }: QuickLogCardProps) {
+  const { t } = useI18n();
   return (
     <View style={styles.card}>
-      <Text style={styles.cardTitle}>Quick Log</Text>
-      <Text style={styles.cardSub}>{subtitle}</Text>
+      <Text style={styles.cardTitle}>{t('Quick Log')}</Text>
+      <Text style={styles.cardSub}>{subtitle ?? t('Tap to log today — saves instantly')}</Text>
       <QuickLogRow
-        label="Weight"
+        label={t('Weight')}
         icon={<TrendingDown size={16} color={COLORS.rosePrimary} />}
         value={weightToday}
         seed={latestWeight}
@@ -136,7 +139,7 @@ export function QuickLogCard({
       />
       <View style={styles.divider} />
       <QuickLogRow
-        label="Waist"
+        label={t('Waist')}
         icon={<Flat size={16} color={COLORS.roseAccent} />}
         value={waistToday}
         seed={latestWaist}
@@ -188,20 +191,21 @@ export function WeeklySummaryCard({
   daysLogged,
   loading,
 }: WeeklySummaryCardProps) {
+  const { t } = useI18n();
   return (
     <View style={styles.card}>
       <View style={styles.weekHeader}>
-        <Text style={styles.cardTitle}>This Week</Text>
-        <Text style={styles.weekDays}>{daysLogged}/7 days logged</Text>
+        <Text style={styles.cardTitle}>{t('This Week')}</Text>
+        <Text style={styles.weekDays}>{daysLogged}/7 {t('days logged')}</Text>
       </View>
       {loading ? (
         <ActivityIndicator color={COLORS.rosePrimary} style={{ marginVertical: SPACING.sm }} />
       ) : (
         <View style={styles.statsRow}>
-          <DeltaStat label="Weight" delta={weightDelta} unit="kg" />
-          <DeltaStat label="Waist" delta={waistDelta} unit="cm" />
+          <DeltaStat label={t('Weight')} delta={weightDelta} unit="kg" />
+          <DeltaStat label={t('Waist')} delta={waistDelta} unit="cm" />
           <View style={styles.statCol}>
-            <Text style={styles.statLabel}>Habits</Text>
+            <Text style={styles.statLabel}>{t('Habits')}</Text>
             <View style={styles.statValueRow}>
               <Text style={[styles.statValue, { color: COLORS.sageDark }]}>
                 {avgHabitPct == null ? '--' : avgHabitPct}

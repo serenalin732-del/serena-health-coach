@@ -100,7 +100,7 @@ Deno.serve(async (req: Request) => {
           method: 'POST',
           headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            from: 'Serena Health Coach <reminders@resend.dev>',
+            from: 'Health Coach <reminders@resend.dev>',
             to: u.reminder_email,
             subject: slot.title,
             text: `${slot.body}\n\nOpen your check-in: https://serena-health-coach.pages.dev`,

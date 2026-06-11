@@ -97,7 +97,7 @@ Deno.serve(async (req: Request) => {
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
-        'X-Title': 'Serena Meal Analysis',
+        'X-Title': 'Health Coach Meal Analysis',
       },
       body: JSON.stringify({
         model,
