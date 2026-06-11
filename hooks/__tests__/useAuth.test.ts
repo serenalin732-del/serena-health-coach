@@ -48,6 +48,14 @@ describe('useAuth - session bootstrap', () => {
     expect(result.current.user).toEqual({ id: 'u1', email: 'a@b.com' });
   });
 
+  it('settles out of loading even if getSession rejects', async () => {
+    mockGetSession.mockRejectedValue(new Error('network down'));
+    const { result } = renderHook(() => useAuth());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.user).toBeNull();
+    expect(result.current.session).toBeNull();
+  });
+
   it('subscribes to auth changes and unsubscribes on unmount', async () => {
     const { unmount, result } = renderHook(() => useAuth());
     await waitFor(() => expect(result.current.loading).toBe(false));
