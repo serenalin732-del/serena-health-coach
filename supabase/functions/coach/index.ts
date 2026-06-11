@@ -39,6 +39,10 @@ type DailyRow = {
   log_date: string;
   weight_kg: number | null;
   waist_cm: number | null;
+  body_fat_pct: number | null;
+  lean_mass_kg: number | null;
+  resting_hr: number | null;
+  hrv_ms: number | null;
   protein_g: number | null;
   steps: number | null;
   water_ml: number | null;
@@ -79,6 +83,10 @@ function buildSummary(
   // Body metrics
   lines.push(`Weight kg: ${trend(daily, 'weight_kg')}`);
   lines.push(`Waist cm: ${trend(daily, 'waist_cm')}`);
+  lines.push(`Body fat %: ${trend(daily, 'body_fat_pct')}`);
+  lines.push(`Lean body mass kg: ${trend(daily, 'lean_mass_kg')}`);
+  lines.push(`Resting HR bpm: ${trend(daily, 'resting_hr')}`);
+  lines.push(`HRV ms: ${trend(daily, 'hrv_ms')}`);
   lines.push(`Steps: ${trend(daily, 'steps')}`);
   lines.push(`Water ml: ${trend(daily, 'water_ml')}`);
 
@@ -246,7 +254,7 @@ Deno.serve(async (req: Request) => {
       await Promise.all([
         supabase
           .from('daily_logs')
-          .select('log_date, weight_kg, waist_cm, protein_g, steps, water_ml')
+          .select('log_date, weight_kg, waist_cm, body_fat_pct, lean_mass_kg, resting_hr, hrv_ms, protein_g, steps, water_ml')
           .eq('user_id', user.id)
           .gte('log_date', since14)
           .order('log_date', { ascending: true }),

@@ -16,6 +16,9 @@ export interface DailyLog {
   weight_kg: number | null;
   waist_cm: number | null;
   body_fat_pct: number | null;
+  lean_mass_kg: number | null;
+  resting_hr: number | null;
+  hrv_ms: number | null;
   steps: number | null;
   water_ml: number | null;
   protein_g: number | null;
