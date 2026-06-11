@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { COLORS, FONTS, SPACING, RADIUS } from '@/lib/theme';
+import { useI18n } from '@/lib/i18n';
 
 interface InputFieldProps extends TextInputProps {
   label: string;
@@ -44,6 +45,7 @@ interface PrimaryButtonProps {
 }
 
 export function PrimaryButton({ label, onPress, loading, disabled, style, variant = 'primary' }: PrimaryButtonProps) {
+  const { t } = useI18n();
   const isDisabled = disabled || loading;
   return (
     <TouchableOpacity
@@ -67,7 +69,7 @@ export function PrimaryButton({ label, onPress, loading, disabled, style, varian
           variant === 'ghost' && styles.btnTextGhost,
         ]}
       >
-        {loading ? 'Saving...' : label}
+        {loading ? t('Saving...') : label}
       </Text>
     </TouchableOpacity>
   );

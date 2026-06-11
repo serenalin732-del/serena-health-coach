@@ -3,10 +3,12 @@ import { StyleSheet, View } from 'react-native';
 import { LayoutDashboard, Utensils, TrendingUp, Heart, Settings } from 'lucide-react-native';
 import { COLORS, FONTS } from '@/lib/theme';
 import { useAuth } from '@/hooks/useAuth';
+import { useI18n } from '@/lib/i18n';
 import { useEffect } from 'react';
 
 export default function TabLayout() {
   const { session, loading } = useAuth();
+  const { t } = useI18n();
   const router = useRouter();
 
   useEffect(() => {
@@ -31,35 +33,35 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Dashboard',
+          title: t('Dashboard'),
           tabBarIcon: ({ color, size }) => <LayoutDashboard size={size - 2} color={color} strokeWidth={2} />,
         }}
       />
       <Tabs.Screen
         name="food"
         options={{
-          title: 'Food',
+          title: t('Food'),
           tabBarIcon: ({ color, size }) => <Utensils size={size - 2} color={color} strokeWidth={2} />,
         }}
       />
       <Tabs.Screen
         name="trends"
         options={{
-          title: 'Trends',
+          title: t('Trends'),
           tabBarIcon: ({ color, size }) => <TrendingUp size={size - 2} color={color} strokeWidth={2} />,
         }}
       />
       <Tabs.Screen
         name="health"
         options={{
-          title: 'Health',
+          title: t('Health'),
           tabBarIcon: ({ color, size }) => <Heart size={size - 2} color={color} strokeWidth={2} />,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'Settings',
+          title: t('Settings'),
           tabBarIcon: ({ color, size }) => <Settings size={size - 2} color={color} strokeWidth={2} />,
         }}
       />

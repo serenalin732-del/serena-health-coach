@@ -22,14 +22,22 @@ import {
   Bell,
   Mail,
   Target,
+  Heart,
+  Percent,
+  Footprints,
+  Droplets,
+  Dumbbell,
+  Star,
 } from 'lucide-react-native';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOW } from '@/lib/theme';
 import { SectionCard } from '@/components/Cards';
 import { ModalSheet } from '@/components/UI';
-import { InputField, PrimaryButton } from '@/components/Inputs';
+import { InputField, PrimaryButton, Chip } from '@/components/Inputs';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { useReminders, type ReminderKey } from '@/hooks/useReminders';
+import { useI18n } from '@/lib/i18n';
+import { usePrefs } from '@/lib/prefs';
 import { sanitizeDecimalInput, parseNumericInput } from '@/lib/utils';
 import type { UserProfile } from '@/lib/types';
 
@@ -45,6 +53,8 @@ export default function SettingsScreen() {
   const [goalsForm, setGoalsForm] = useState({ target_weight_kg: '', target_waist_cm: '', goal_focus: '' });
   const [savingGoals, setSavingGoals] = useState(false);
   const reminders = useReminders(userId);
+  const { t, lang, setLang } = useI18n();
+  const { prefs, setPref } = usePrefs();
 
   const fetchProfile = useCallback(async () => {
     if (!userId) return;
@@ -69,13 +79,13 @@ export default function SettingsScreen() {
   const togglePush = async (enabled: boolean) => {
     const result = await reminders.setPushEnabled(enabled);
     if (result === 'denied') {
-      Alert.alert('Notifications blocked', 'Enable notifications for this site in your browser settings, then try again.');
+      Alert.alert(t('Notifications blocked'), t('Enable notifications for this site in your browser settings, then try again.'));
     } else if (result === 'unsupported') {
-      Alert.alert('Not supported here', 'Open the app in a browser (and add it to your Home Screen on iOS) to enable push notifications.');
+      Alert.alert(t('Not supported here'), t('Open the app in a browser (and add it to your Home Screen on iOS) to enable push notifications.'));
     } else if (result === 'misconfigured') {
-      Alert.alert('Almost there', 'Push is not configured yet (missing VAPID key). Email reminders still work.');
+      Alert.alert(t('Almost there'), t('Push is not configured yet (missing VAPID key). Email reminders still work.'));
     } else if (result === 'error') {
-      Alert.alert('Something went wrong', 'Could not enable push notifications. Please try again.');
+      Alert.alert(t('Something went wrong'), t('Could not enable push notifications. Please try again.'));
     }
   };
 
@@ -89,7 +99,7 @@ export default function SettingsScreen() {
 
   const saveProfile = async () => {
     if (!userId) {
-      Alert.alert('Not signed in', 'Please sign in again and retry.');
+      Alert.alert(t('Not signed in'), t('Please sign in again and retry.'));
       return;
     }
     setSaving(true);
@@ -109,7 +119,7 @@ export default function SettingsScreen() {
     setSaving(false);
     if (error) {
       // Surface the failure instead of silently dropping the change.
-      Alert.alert('Could not save profile', error.message);
+      Alert.alert(t('Could not save profile'), error.message);
       return;
     }
     if (data) setProfile(data as UserProfile);
@@ -134,7 +144,7 @@ export default function SettingsScreen() {
     });
     setSavingGoals(false);
     if (error) {
-      Alert.alert('Could not save goals', error.message);
+      Alert.alert(t('Could not save goals'), error.message);
       return;
     }
     setShowGoals(false);
@@ -147,12 +157,12 @@ export default function SettingsScreen() {
       reminders.settings.goal_focus || null,
     ]
       .filter(Boolean)
-      .join(' · ') || 'Tell your AI coach what you are aiming for';
+      .join(' · ') || t('Tell your AI coach what you are aiming for');
 
   const handleSignOut = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: onSignOut },
+    Alert.alert(t('Sign Out'), t('Are you sure you want to sign out?'), [
+      { text: t('Cancel'), style: 'cancel' },
+      { text: t('Sign Out'), style: 'destructive', onPress: onSignOut },
     ]);
   };
 
@@ -160,7 +170,7 @@ export default function SettingsScreen() {
     <SafeAreaView style={styles.safe}>
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={styles.pageTitle}>Settings</Text>
+          <Text style={styles.pageTitle}>{t('Settings')}</Text>
         </View>
 
         {/* Profile Card */}
@@ -169,46 +179,107 @@ export default function SettingsScreen() {
             <Text style={styles.avatarText}>{(profile?.full_name ?? 'S').charAt(0).toUpperCase()}</Text>
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>{profile?.full_name ?? 'Serena User'}</Text>
+            <Text style={styles.profileName}>{profile?.full_name ?? 'User'}</Text>
             <Text style={styles.profileEmail}>{profile?.email ?? ''}</Text>
           </View>
           <TouchableOpacity onPress={openProfileEdit} style={styles.editProfileBtn}>
-            <Text style={styles.editProfileTxt}>Edit</Text>
+            <Text style={styles.editProfileTxt}>{t('Edit')}</Text>
           </TouchableOpacity>
         </View>
 
         {/* Goals */}
-        <SectionCard title="Goals">
+        <SectionCard title={t('Goals')}>
           <SettingsRow
             icon={<Target size={18} color={COLORS.rosePrimary} />}
-            label="My Goals"
+            label={t('My Goals')}
             sublabel={goalSummary}
             onPress={openGoals}
           />
         </SectionCard>
 
+        {/* Language */}
+        <SectionCard title={t('Language')}>
+          <View style={styles.langRow}>
+            <Chip label="English" selected={lang === 'en'} onPress={() => setLang('en')} />
+            <Chip label="中文" selected={lang === 'zh'} onPress={() => setLang('zh')} />
+          </View>
+        </SectionCard>
+
+        {/* Dashboard cards (per-device) */}
+        <SectionCard title={t('Dashboard Cards')}>
+          <Text style={styles.sectionHint}>{t('Choose what shows on your dashboard')}</Text>
+          <ReminderRow
+            icon={<Heart size={18} color={COLORS.roseBeige} />}
+            label={t('Cycle tracking')}
+            sublabel={t('Shows the cycle card and Health section')}
+            value={prefs.cycle}
+            onToggle={() => setPref('cycle', !prefs.cycle)}
+            color={COLORS.roseBeigeLight}
+          />
+          <ReminderRow
+            icon={<Percent size={18} color={COLORS.warning} />}
+            label={t('Body Fat')}
+            sublabel=""
+            value={prefs.body_fat}
+            onToggle={() => setPref('body_fat', !prefs.body_fat)}
+            color={COLORS.warningLight}
+          />
+          <ReminderRow
+            icon={<Dumbbell size={18} color={COLORS.sageDark} />}
+            label={t('Protein')}
+            sublabel=""
+            value={prefs.protein}
+            onToggle={() => setPref('protein', !prefs.protein)}
+            color={COLORS.sagePale}
+          />
+          <ReminderRow
+            icon={<Footprints size={18} color={COLORS.roseBeigeDeep} />}
+            label={t('Steps')}
+            sublabel=""
+            value={prefs.steps}
+            onToggle={() => setPref('steps', !prefs.steps)}
+            color={COLORS.creamDark}
+          />
+          <ReminderRow
+            icon={<Droplets size={18} color={COLORS.sage} />}
+            label={t('Water')}
+            sublabel=""
+            value={prefs.water}
+            onToggle={() => setPref('water', !prefs.water)}
+            color={COLORS.sagePale}
+          />
+          <ReminderRow
+            icon={<Star size={18} color={COLORS.warning} />}
+            label={t('Score')}
+            sublabel=""
+            value={prefs.score}
+            onToggle={() => setPref('score', !prefs.score)}
+            color={COLORS.warningLight}
+          />
+        </SectionCard>
+
         {/* Reminders */}
-        <SectionCard title="Reminders">
+        <SectionCard title={t('Reminders')}>
           <ReminderRow
             icon={<Sun size={18} color={COLORS.warning} />}
-            label="Morning Check-in"
-            sublabel="Start your day right"
+            label={t('Morning Check-in')}
+            sublabel={t('Start your day right')}
             value={reminders.settings.reminder_morning ?? true}
             onToggle={() => toggleReminder('reminder_morning')}
             color={COLORS.warningLight}
           />
           <ReminderRow
             icon={<Utensils size={18} color={COLORS.rosePrimary} />}
-            label="Lunch Reminder"
-            sublabel="Track your midday meal"
+            label={t('Lunch Reminder')}
+            sublabel={t('Track your midday meal')}
             value={reminders.settings.reminder_lunch ?? true}
             onToggle={() => toggleReminder('reminder_lunch')}
             color={COLORS.roseBeigeLight}
           />
           <ReminderRow
             icon={<Moon size={18} color={COLORS.sageDark} />}
-            label="Evening Check-in"
-            sublabel="Review your day"
+            label={t('Evening Check-in')}
+            sublabel={t('Review your day')}
             value={reminders.settings.reminder_evening ?? true}
             onToggle={() => toggleReminder('reminder_evening')}
             color={COLORS.sagePale}
@@ -216,11 +287,11 @@ export default function SettingsScreen() {
         </SectionCard>
 
         {/* Notification delivery */}
-        <SectionCard title="Notifications">
+        <SectionCard title={t('Notifications')}>
           <ReminderRow
             icon={<Bell size={18} color={COLORS.rosePrimary} />}
-            label="Push Notifications"
-            sublabel={reminders.pushSupported ? 'Get reminders on this device' : 'Add to Home Screen to enable'}
+            label={t('Push Notifications')}
+            sublabel={reminders.pushSupported ? t('Get reminders on this device') : t('Add to Home Screen to enable')}
             value={reminders.settings.push_enabled ?? false}
             onToggle={() => togglePush(!(reminders.settings.push_enabled ?? false))}
             color={COLORS.roseBeigeLight}
@@ -228,8 +299,8 @@ export default function SettingsScreen() {
           />
           <ReminderRow
             icon={<Mail size={18} color={COLORS.sageDark} />}
-            label="Email Reminders"
-            sublabel={profile?.email ? `Sent to ${profile.email}` : 'Add an email to your profile first'}
+            label={t('Email Reminders')}
+            sublabel={profile?.email ? t('Sent to {x}', { x: profile.email }) : t('Add an email to your profile first')}
             value={reminders.settings.email_reminders ?? false}
             onToggle={() => toggleEmail(!(reminders.settings.email_reminders ?? false))}
             color={COLORS.sagePale}
@@ -237,49 +308,49 @@ export default function SettingsScreen() {
         </SectionCard>
 
         {/* Data Management */}
-        <SectionCard title="Data">
-          <SettingsRow icon={<Download size={18} color={COLORS.sage} />} label="Export Data" sublabel="Download your health data" onPress={() => {}} />
-          <SettingsRow icon={<Upload size={18} color={COLORS.sage} />} label="Import Data" sublabel="Upload from another device" onPress={() => {}} />
-          <SettingsRow icon={<Shield size={18} color={COLORS.sage} />} label="Backup Data" sublabel="Auto-synced to Supabase" onPress={() => {}} showChevron={false} />
+        <SectionCard title={t('Data')}>
+          <SettingsRow icon={<Download size={18} color={COLORS.sage} />} label={t('Export Data')} sublabel={t('Download your health data')} onPress={() => {}} />
+          <SettingsRow icon={<Upload size={18} color={COLORS.sage} />} label={t('Import Data')} sublabel={t('Upload from another device')} onPress={() => {}} />
+          <SettingsRow icon={<Shield size={18} color={COLORS.sage} />} label={t('Backup Data')} sublabel={t('Auto-synced to Supabase')} onPress={() => {}} showChevron={false} />
         </SectionCard>
 
         {/* Account */}
-        <SectionCard title="Account">
+        <SectionCard title={t('Account')}>
           <SettingsRow
             icon={<LogOut size={18} color={COLORS.error} />}
-            label="Sign Out"
+            label={t('Sign Out')}
             sublabel=""
             onPress={handleSignOut}
             labelColor={COLORS.error}
           />
         </SectionCard>
 
-        <Text style={styles.version}>Serena Health Coach v1.0</Text>
+        <Text style={styles.version}>Health Coach v1.1</Text>
         <View style={{ height: SPACING.xxl }} />
       </ScrollView>
 
-      <ModalSheet visible={showProfileEdit} onClose={() => setShowProfileEdit(false)} title="Edit Profile">
+      <ModalSheet visible={showProfileEdit} onClose={() => setShowProfileEdit(false)} title={t('Edit Profile')}>
         <InputField
-          label="Full Name"
+          label={t('Full Name')}
           value={profileForm.full_name}
           onChangeText={v => setProfileForm(f => ({ ...f, full_name: v }))}
-          placeholder="Your name"
+          placeholder={t('Your name')}
           autoCapitalize="words"
         />
         <InputField
-          label="Height"
+          label={t('Height')}
           value={profileForm.height_cm}
           onChangeText={v => setProfileForm(f => ({ ...f, height_cm: v }))}
           keyboardType="decimal-pad"
           unit="cm"
           placeholder="e.g. 165"
         />
-        <PrimaryButton label="Save Profile" onPress={saveProfile} loading={saving} />
+        <PrimaryButton label={t('Save Profile')} onPress={saveProfile} loading={saving} />
       </ModalSheet>
 
-      <ModalSheet visible={showGoals} onClose={() => setShowGoals(false)} title="My Goals">
+      <ModalSheet visible={showGoals} onClose={() => setShowGoals(false)} title={t('My Goals')}>
         <InputField
-          label="Target Weight"
+          label={t('Target Weight')}
           value={goalsForm.target_weight_kg}
           onChangeText={v => setGoalsForm(f => ({ ...f, target_weight_kg: sanitizeDecimalInput(v) }))}
           keyboardType="decimal-pad"
@@ -287,7 +358,7 @@ export default function SettingsScreen() {
           placeholder="e.g. 55"
         />
         <InputField
-          label="Target Waist"
+          label={t('Target Waist')}
           value={goalsForm.target_waist_cm}
           onChangeText={v => setGoalsForm(f => ({ ...f, target_waist_cm: sanitizeDecimalInput(v) }))}
           keyboardType="decimal-pad"
@@ -295,12 +366,12 @@ export default function SettingsScreen() {
           placeholder="e.g. 80"
         />
         <InputField
-          label="Focus (what matters to you)"
+          label={t('Focus (what matters to you)')}
           value={goalsForm.goal_focus}
           onChangeText={v => setGoalsForm(f => ({ ...f, goal_focus: v }))}
-          placeholder="e.g. fat loss, better sleep, keep muscle"
+          placeholder={t('e.g. fat loss, better sleep, keep muscle')}
         />
-        <PrimaryButton label="Save Goals" onPress={saveGoals} loading={savingGoals} />
+        <PrimaryButton label={t('Save Goals')} onPress={saveGoals} loading={savingGoals} />
       </ModalSheet>
     </SafeAreaView>
   );
@@ -404,6 +475,16 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.medium,
     fontSize: 13,
     color: COLORS.charcoalMed,
+  },
+  langRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+  sectionHint: {
+    fontFamily: FONTS.regular,
+    fontSize: 12,
+    color: COLORS.charcoalMuted,
+    marginBottom: SPACING.sm,
   },
   settingsRow: {
     flexDirection: 'row',

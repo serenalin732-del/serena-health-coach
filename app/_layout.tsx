@@ -14,6 +14,8 @@ import {
 import * as SplashScreen from 'expo-splash-screen';
 import { COLORS } from '@/lib/theme';
 import { registerServiceWorker } from '@/lib/push';
+import { I18nProvider } from '@/lib/i18n';
+import { PrefsProvider } from '@/lib/prefs';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -73,14 +75,16 @@ export default function RootLayout() {
   }
 
   return (
-    <>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="auth" />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="dark" />
-    </>
+    <I18nProvider>
+      <PrefsProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="auth" />
+          <Stack.Screen name="+not-found" />
+        </Stack>
+        <StatusBar style="dark" />
+      </PrefsProvider>
+    </I18nProvider>
   );
 }
 

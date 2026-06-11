@@ -21,6 +21,8 @@ import { ModalSheet, Tag } from '@/components/UI';
 import { InputField, PrimaryButton } from '@/components/Inputs';
 import { useSleepLog, useCycleLogs, useLabResults, useCgmLog } from '@/hooks/useHealth';
 import { useAuth } from '@/hooks/useAuth';
+import { useI18n } from '@/lib/i18n';
+import { usePrefs } from '@/lib/prefs';
 import { todayStr, formatDisplayDate, calcCycleDay } from '@/lib/utils';
 import type { LabResult, CycleLog } from '@/lib/types';
 
@@ -28,6 +30,8 @@ type HealthSection = 'sleep' | 'cycle' | 'labs' | 'cgm';
 
 export default function HealthScreen() {
   const { user } = useAuth();
+  const { t } = useI18n();
+  const { prefs } = usePrefs();
   const userId = user?.id ?? '';
   const today = todayStr();
   const { log: sleepLog, save: saveSleep } = useSleepLog(userId, today);
@@ -108,12 +112,12 @@ export default function HealthScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.rosePrimary} />}
       >
         <View style={styles.header}>
-          <Text style={styles.pageTitle}>Health</Text>
+          <Text style={styles.pageTitle}>{t('Health')}</Text>
         </View>
 
         {/* Sleep */}
         <SectionCard
-          title="Sleep"
+          title={t('Sleep')}
           rightHeader={
             <TouchableOpacity onPress={() => openModal('sleep')} style={styles.addIconBtn}>
               <Plus size={18} color={COLORS.sage} />
@@ -125,11 +129,11 @@ export default function HealthScreen() {
               <Moon size={20} color={COLORS.sageDark} />
             </View>
             <View style={styles.healthInfo}>
-              <Text style={styles.healthTitle}>Last Night</Text>
+              <Text style={styles.healthTitle}>{t('Last Night')}</Text>
               <View style={styles.healthStats}>
                 {sleepLog?.hours != null && <Tag label={`${sleepLog.hours}h`} color={COLORS.sageDark} bg={COLORS.sagePale} />}
-                {sleepLog?.score != null && <Tag label={`Score ${sleepLog.score}`} color={COLORS.sageDark} bg={COLORS.sagePale} />}
-                {!sleepLog?.hours && !sleepLog?.score && <Text style={styles.noData}>No sleep data logged</Text>}
+                {sleepLog?.score != null && <Tag label={t('Score {x}', { x: sleepLog.score })} color={COLORS.sageDark} bg={COLORS.sagePale} />}
+                {!sleepLog?.hours && !sleepLog?.score && <Text style={styles.noData}>{t('No sleep data logged')}</Text>}
               </View>
               {sleepLog?.notes ? <Text style={styles.healthNotes}>{sleepLog.notes}</Text> : null}
             </View>
@@ -137,8 +141,9 @@ export default function HealthScreen() {
         </SectionCard>
 
         {/* Menstrual */}
+        {prefs.cycle && (
         <SectionCard
-          title="Menstrual Cycle"
+          title={t('Menstrual Cycle')}
           rightHeader={
             <TouchableOpacity onPress={() => openModal('cycle')} style={styles.addIconBtn}>
               <Plus size={18} color={COLORS.rosePrimary} />
@@ -152,14 +157,14 @@ export default function HealthScreen() {
             <View style={styles.healthInfo}>
               {latestCycle ? (
                 <>
-                  <Text style={styles.healthTitle}>Cycle Day {cycleDay}</Text>
+                  <Text style={styles.healthTitle}>{t('Cycle Day {x}', { x: cycleDay ?? '' })}</Text>
                   <View style={styles.healthStats}>
-                    <Tag label={`Started ${formatDisplayDate(latestCycle.period_start)}`} color={COLORS.rosePrimary} bg={COLORS.roseBeigeLight} />
-                    <Tag label={`${latestCycle.cycle_length_days}d cycle`} color={COLORS.roseAccent} bg={COLORS.roseBeigeLight} />
+                    <Tag label={t('Started {x}', { x: formatDisplayDate(latestCycle.period_start) })} color={COLORS.rosePrimary} bg={COLORS.roseBeigeLight} />
+                    <Tag label={t('{x}d cycle', { x: latestCycle.cycle_length_days })} color={COLORS.roseAccent} bg={COLORS.roseBeigeLight} />
                   </View>
                 </>
               ) : (
-                <Text style={styles.noData}>No cycle data logged</Text>
+                <Text style={styles.noData}>{t('No cycle data logged')}</Text>
               )}
             </View>
           </View>
@@ -167,14 +172,15 @@ export default function HealthScreen() {
           {cycleLogs.slice(0, 3).map((c: CycleLog) => (
             <View key={c.id} style={styles.historyRow}>
               <Text style={styles.historyDate}>{formatDisplayDate(c.period_start)}</Text>
-              <Text style={styles.historyValue}>{c.cycle_length_days}d cycle</Text>
+              <Text style={styles.historyValue}>{t('{x}d cycle', { x: c.cycle_length_days })}</Text>
             </View>
           ))}
         </SectionCard>
+        )}
 
         {/* Lab Results */}
         <SectionCard
-          title="Lab Results"
+          title={t('Lab Results')}
           rightHeader={
             <TouchableOpacity onPress={() => openModal('labs')} style={styles.addIconBtn}>
               <Plus size={18} color={COLORS.warning} />
@@ -190,16 +196,16 @@ export default function HealthScreen() {
                 <>
                   <Text style={styles.healthTitle}>{formatDisplayDate(labResults[0].test_date)}</Text>
                   <View style={styles.labGrid}>
-                    <LabValue label="Cortisol" value={labResults[0].cortisol} unit="nmol/L" />
-                    <LabValue label="Vit D" value={labResults[0].vitamin_d} unit="nmol/L" />
-                    <LabValue label="Progesterone" value={labResults[0].progesterone} unit="ng/mL" />
-                    <LabValue label="Glucose" value={labResults[0].glucose} unit="mg/dL" />
+                    <LabValue label={t('Cortisol')} value={labResults[0].cortisol} unit="nmol/L" />
+                    <LabValue label={t('Vit D')} value={labResults[0].vitamin_d} unit="nmol/L" />
+                    <LabValue label={t('Progesterone')} value={labResults[0].progesterone} unit="ng/mL" />
+                    <LabValue label={t('Glucose')} value={labResults[0].glucose} unit="mg/dL" />
                     <LabValue label="HbA1c" value={labResults[0].hba1c} unit="%" />
-                    <LabValue label="Cholesterol" value={labResults[0].cholesterol} unit="mg/dL" />
+                    <LabValue label={t('Cholesterol')} value={labResults[0].cholesterol} unit="mg/dL" />
                   </View>
                 </>
               ) : (
-                <Text style={styles.noData}>No lab results logged</Text>
+                <Text style={styles.noData}>{t('No lab results logged')}</Text>
               )}
             </View>
           </View>
@@ -207,7 +213,7 @@ export default function HealthScreen() {
 
         {/* CGM */}
         <SectionCard
-          title="CGM Glucose"
+          title={t('CGM Glucose')}
           rightHeader={
             <TouchableOpacity onPress={() => openModal('cgm')} style={styles.addIconBtn}>
               <Plus size={18} color={COLORS.roseAccent} />
@@ -219,11 +225,11 @@ export default function HealthScreen() {
               <Activity size={20} color={COLORS.roseAccent} />
             </View>
             <View style={styles.healthInfo}>
-              <Text style={styles.healthTitle}>Today</Text>
+              <Text style={styles.healthTitle}>{t('Today')}</Text>
               <View style={styles.healthStats}>
-                {cgmLog?.daily_avg_glucose != null && <Tag label={`Avg ${cgmLog.daily_avg_glucose} mg/dL`} color={COLORS.roseAccent} bg={COLORS.roseBeigeLight} />}
+                {cgmLog?.daily_avg_glucose != null && <Tag label={t('Avg {x}', { x: `${cgmLog.daily_avg_glucose} mg/dL` })} color={COLORS.roseAccent} bg={COLORS.roseBeigeLight} />}
                 {cgmLog?.time_in_range_pct != null && <Tag label={`TIR ${cgmLog.time_in_range_pct}%`} color={COLORS.sageDark} bg={COLORS.sagePale} />}
-                {!cgmLog?.daily_avg_glucose && !cgmLog?.time_in_range_pct && <Text style={styles.noData}>No CGM data today</Text>}
+                {!cgmLog?.daily_avg_glucose && !cgmLog?.time_in_range_pct && <Text style={styles.noData}>{t('No CGM data today')}</Text>}
               </View>
               {cgmLog?.notes ? <Text style={styles.healthNotes}>{cgmLog.notes}</Text> : null}
             </View>
@@ -234,40 +240,40 @@ export default function HealthScreen() {
       </ScrollView>
 
       {/* Sleep Modal */}
-      <ModalSheet visible={activeModal === 'sleep'} onClose={() => setActiveModal(null)} title="Log Sleep">
-        <InputField label="Hours Slept" value={sleepForm.hours} onChangeText={v => setSleepForm(f => ({ ...f, hours: v }))} keyboardType="decimal-pad" unit="hrs" placeholder="e.g. 7.5" />
-        <InputField label="Sleep Score" value={sleepForm.score} onChangeText={v => setSleepForm(f => ({ ...f, score: v }))} keyboardType="number-pad" unit="/ 100" placeholder="e.g. 82" />
-        <InputField label="Notes" value={sleepForm.notes} onChangeText={v => setSleepForm(f => ({ ...f, notes: v }))} placeholder="How did you feel?" multiline />
-        <PrimaryButton label="Save Sleep" onPress={handleSaveSleep} loading={saving} />
+      <ModalSheet visible={activeModal === 'sleep'} onClose={() => setActiveModal(null)} title={t('Log Sleep')}>
+        <InputField label={t('Hours Slept')} value={sleepForm.hours} onChangeText={v => setSleepForm(f => ({ ...f, hours: v }))} keyboardType="decimal-pad" unit="hrs" placeholder="e.g. 7.5" />
+        <InputField label={t('Sleep Score')} value={sleepForm.score} onChangeText={v => setSleepForm(f => ({ ...f, score: v }))} keyboardType="number-pad" unit="/ 100" placeholder="e.g. 82" />
+        <InputField label={t('Notes')} value={sleepForm.notes} onChangeText={v => setSleepForm(f => ({ ...f, notes: v }))} placeholder={t('How did you feel?')} multiline />
+        <PrimaryButton label={t('Save Sleep')} onPress={handleSaveSleep} loading={saving} />
       </ModalSheet>
 
       {/* Cycle Modal */}
-      <ModalSheet visible={activeModal === 'cycle'} onClose={() => setActiveModal(null)} title="Log Period">
-        <InputField label="Period Start Date (YYYY-MM-DD)" value={cycleForm.period_start} onChangeText={v => setCycleForm(f => ({ ...f, period_start: v }))} placeholder={today} />
-        <InputField label="Cycle Length" value={cycleForm.cycle_length_days} onChangeText={v => setCycleForm(f => ({ ...f, cycle_length_days: v }))} keyboardType="number-pad" unit="days" placeholder="28" />
-        <InputField label="Notes" value={cycleForm.notes} onChangeText={v => setCycleForm(f => ({ ...f, notes: v }))} placeholder="Symptoms, mood..." multiline />
-        <PrimaryButton label="Save Cycle" onPress={handleSaveCycle} loading={saving} />
+      <ModalSheet visible={activeModal === 'cycle'} onClose={() => setActiveModal(null)} title={t('Log Period')}>
+        <InputField label={t('Period Start Date (YYYY-MM-DD)')} value={cycleForm.period_start} onChangeText={v => setCycleForm(f => ({ ...f, period_start: v }))} placeholder={today} />
+        <InputField label={t('Cycle Length')} value={cycleForm.cycle_length_days} onChangeText={v => setCycleForm(f => ({ ...f, cycle_length_days: v }))} keyboardType="number-pad" unit={t('days')} placeholder="28" />
+        <InputField label={t('Notes')} value={cycleForm.notes} onChangeText={v => setCycleForm(f => ({ ...f, notes: v }))} placeholder={t('Symptoms, mood...')} multiline />
+        <PrimaryButton label={t('Save Cycle')} onPress={handleSaveCycle} loading={saving} />
       </ModalSheet>
 
       {/* Labs Modal */}
-      <ModalSheet visible={activeModal === 'labs'} onClose={() => setActiveModal(null)} title="Add Lab Results">
-        <InputField label="Test Date (YYYY-MM-DD)" value={labForm.test_date} onChangeText={v => setLabForm(f => ({ ...f, test_date: v }))} placeholder={today} />
-        <InputField label="Cortisol" value={labForm.cortisol} onChangeText={v => setLabForm(f => ({ ...f, cortisol: v }))} keyboardType="decimal-pad" unit="nmol/L" placeholder="" />
-        <InputField label="Vitamin D" value={labForm.vitamin_d} onChangeText={v => setLabForm(f => ({ ...f, vitamin_d: v }))} keyboardType="decimal-pad" unit="nmol/L" placeholder="" />
-        <InputField label="Progesterone" value={labForm.progesterone} onChangeText={v => setLabForm(f => ({ ...f, progesterone: v }))} keyboardType="decimal-pad" unit="ng/mL" placeholder="" />
-        <InputField label="Glucose" value={labForm.glucose} onChangeText={v => setLabForm(f => ({ ...f, glucose: v }))} keyboardType="decimal-pad" unit="mg/dL" placeholder="" />
+      <ModalSheet visible={activeModal === 'labs'} onClose={() => setActiveModal(null)} title={t('Add Lab Results')}>
+        <InputField label={t('Test Date (YYYY-MM-DD)')} value={labForm.test_date} onChangeText={v => setLabForm(f => ({ ...f, test_date: v }))} placeholder={today} />
+        <InputField label={t('Cortisol')} value={labForm.cortisol} onChangeText={v => setLabForm(f => ({ ...f, cortisol: v }))} keyboardType="decimal-pad" unit="nmol/L" placeholder="" />
+        <InputField label={t('Vitamin D')} value={labForm.vitamin_d} onChangeText={v => setLabForm(f => ({ ...f, vitamin_d: v }))} keyboardType="decimal-pad" unit="nmol/L" placeholder="" />
+        <InputField label={t('Progesterone')} value={labForm.progesterone} onChangeText={v => setLabForm(f => ({ ...f, progesterone: v }))} keyboardType="decimal-pad" unit="ng/mL" placeholder="" />
+        <InputField label={t('Glucose')} value={labForm.glucose} onChangeText={v => setLabForm(f => ({ ...f, glucose: v }))} keyboardType="decimal-pad" unit="mg/dL" placeholder="" />
         <InputField label="HbA1c" value={labForm.hba1c} onChangeText={v => setLabForm(f => ({ ...f, hba1c: v }))} keyboardType="decimal-pad" unit="%" placeholder="" />
-        <InputField label="Cholesterol" value={labForm.cholesterol} onChangeText={v => setLabForm(f => ({ ...f, cholesterol: v }))} keyboardType="decimal-pad" unit="mg/dL" placeholder="" />
-        <InputField label="Notes" value={labForm.notes} onChangeText={v => setLabForm(f => ({ ...f, notes: v }))} placeholder="Additional notes..." multiline />
-        <PrimaryButton label="Save Results" onPress={handleSaveLab} loading={saving} />
+        <InputField label={t('Cholesterol')} value={labForm.cholesterol} onChangeText={v => setLabForm(f => ({ ...f, cholesterol: v }))} keyboardType="decimal-pad" unit="mg/dL" placeholder="" />
+        <InputField label={t('Notes')} value={labForm.notes} onChangeText={v => setLabForm(f => ({ ...f, notes: v }))} placeholder={t('Additional notes...')} multiline />
+        <PrimaryButton label={t('Save Results')} onPress={handleSaveLab} loading={saving} />
       </ModalSheet>
 
       {/* CGM Modal */}
-      <ModalSheet visible={activeModal === 'cgm'} onClose={() => setActiveModal(null)} title="Log CGM Data">
-        <InputField label="Daily Average Glucose" value={cgmForm.daily_avg_glucose} onChangeText={v => setCgmForm(f => ({ ...f, daily_avg_glucose: v }))} keyboardType="decimal-pad" unit="mg/dL" placeholder="e.g. 95" />
-        <InputField label="Time In Range" value={cgmForm.time_in_range_pct} onChangeText={v => setCgmForm(f => ({ ...f, time_in_range_pct: v }))} keyboardType="decimal-pad" unit="%" placeholder="e.g. 87" />
-        <InputField label="Notes" value={cgmForm.notes} onChangeText={v => setCgmForm(f => ({ ...f, notes: v }))} placeholder="Any notable glucose spikes?" multiline />
-        <PrimaryButton label="Save CGM Data" onPress={handleSaveCgm} loading={saving} />
+      <ModalSheet visible={activeModal === 'cgm'} onClose={() => setActiveModal(null)} title={t('Log CGM Data')}>
+        <InputField label={t('Daily Average Glucose')} value={cgmForm.daily_avg_glucose} onChangeText={v => setCgmForm(f => ({ ...f, daily_avg_glucose: v }))} keyboardType="decimal-pad" unit="mg/dL" placeholder="e.g. 95" />
+        <InputField label={t('Time In Range')} value={cgmForm.time_in_range_pct} onChangeText={v => setCgmForm(f => ({ ...f, time_in_range_pct: v }))} keyboardType="decimal-pad" unit="%" placeholder="e.g. 87" />
+        <InputField label={t('Notes')} value={cgmForm.notes} onChangeText={v => setCgmForm(f => ({ ...f, notes: v }))} placeholder={t('Any notable glucose spikes?')} multiline />
+        <PrimaryButton label={t('Save CGM Data')} onPress={handleSaveCgm} loading={saving} />
       </ModalSheet>
     </SafeAreaView>
   );

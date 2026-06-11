@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOW } from '@/lib/theme';
+import { useI18n } from '@/lib/i18n';
 
 interface ModalSheetProps {
   visible: boolean;
@@ -10,6 +11,7 @@ interface ModalSheetProps {
 }
 
 export function ModalSheet({ visible, onClose, title, children }: ModalSheetProps) {
+  const { t } = useI18n();
   return (
     <Modal visible={visible} animationType="slide" transparent presentationStyle="overFullScreen">
       <View style={styles.overlay}>
@@ -19,7 +21,7 @@ export function ModalSheet({ visible, onClose, title, children }: ModalSheetProp
           <View style={styles.header}>
             <Text style={styles.title}>{title}</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Text style={styles.closeTxt}>Done</Text>
+              <Text style={styles.closeTxt}>{t('Done')}</Text>
             </TouchableOpacity>
           </View>
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">

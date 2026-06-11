@@ -37,7 +37,10 @@ import { InputField, PrimaryButton } from '@/components/Inputs';
 import { useDailyLog } from '@/hooks/useDailyLog';
 import { useWeeklySummary } from '@/hooks/useWeeklySummary';
 import { useCoach } from '@/hooks/useCoach';
+import { useCycleLogs } from '@/hooks/useHealth';
 import { useAuth } from '@/hooks/useAuth';
+import { useI18n } from '@/lib/i18n';
+import { usePrefs } from '@/lib/prefs';
 import { QuickLogCard, WeeklySummaryCard } from '@/components/DailyCards';
 import { CoachCard } from '@/components/CoachCard';
 import { HABITS } from '@/lib/types';
@@ -46,6 +49,7 @@ import {
   formatFullDate,
   formatDisplayDate,
   shiftDate,
+  cycleDayOn,
   sanitizeDecimalInput,
   sanitizeIntegerInput,
   parseNumericInput,
@@ -94,6 +98,14 @@ export default function DashboardScreen() {
   const { log, habits, loading, saving, saveLog, toggleHabit, completedCount, totalHabits, completionPct, dailyScore, refresh } = useDailyLog(userId, viewDate);
   const week = useWeeklySummary(userId);
   const coach = useCoach();
+  const { latest: latestCycle } = useCycleLogs(userId);
+  const { t } = useI18n();
+  const { prefs } = usePrefs();
+  // Cycle day comes from the Health page's period log (synced), falling back
+  // to a manually entered value on the daily log.
+  const cycleDay = latestCycle
+    ? cycleDayOn(latestCycle.period_start, viewDate)
+    : (log?.cycle_day ?? null);
   const [showEdit, setShowEdit] = useState(false);
   const [form, setForm] = useState<MetricForm>(EMPTY_METRIC_FORM);
   const [refreshing, setRefreshing] = useState(false);
@@ -164,10 +176,10 @@ export default function DashboardScreen() {
                 <ChevronRight size={18} color={isToday ? COLORS.creamBorder : COLORS.charcoalMed} />
               </TouchableOpacity>
             </View>
-            <Text style={styles.greeting}>{isToday ? 'Good morning!' : 'Editing a past day'}</Text>
+            <Text style={styles.greeting}>{isToday ? t('Good morning!') : t('Editing a past day')}</Text>
           </View>
           <TouchableOpacity onPress={openEdit} style={styles.editBtn}>
-            <Text style={styles.editBtnTxt}>{isToday ? 'Edit Today' : 'Edit This Day'}</Text>
+            <Text style={styles.editBtnTxt}>{isToday ? t('Edit Today') : t('Edit This Day')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -181,26 +193,26 @@ export default function DashboardScreen() {
           onLogWaist={v => quickLog({ waist_cm: v })}
           subtitle={
             isToday
-              ? 'Tap to log today — saves instantly'
-              : `Editing ${formatDisplayDate(viewDate)} — saves to that day`
+              ? t('Tap to log today — saves instantly')
+              : t('Editing {x} — saves to that day', { x: formatDisplayDate(viewDate) })
           }
         />
 
         {/* Score Card */}
         <View style={styles.scoreCard}>
           <View style={styles.scoreLeft}>
-            <Text style={styles.scoreHeading}>Daily Score</Text>
+            <Text style={styles.scoreHeading}>{t('Daily Score')}</Text>
             <Text style={[styles.scoreValue, { color: scoreColor }]}>{dailyScore}</Text>
-            <Text style={styles.scoreSub}>{completedCount}/{totalHabits} habits complete</Text>
+            <Text style={styles.scoreSub}>{completedCount}/{totalHabits} {t('habits complete')}</Text>
           </View>
           <View style={styles.scoreRight}>
             <View style={styles.streakBadge}>
               <FlameIcon size={18} color={COLORS.warning} />
-              <Text style={styles.streakText}>Streak</Text>
+              <Text style={styles.streakText}>{t('Streak')}</Text>
             </View>
             <View style={styles.scoreRingContainer}>
               <ProgressBar value={completionPct} color={scoreColor} height={10} />
-              <Text style={styles.scoreRingPct}>{completionPct}% complete</Text>
+              <Text style={styles.scoreRingPct}>{completionPct}% {t('complete')}</Text>
             </View>
           </View>
         </View>
@@ -225,11 +237,11 @@ export default function DashboardScreen() {
 
         {/* Metrics Grid */}
         <View style={styles.metricsHeader}>
-          <Text style={styles.sectionHeading}>Today's Metrics</Text>
+          <Text style={styles.sectionHeading}>{t("Today's Metrics")}</Text>
         </View>
         <View style={styles.metricsGrid}>
           <MetricCard
-            label="Weight"
+            label={t('Weight')}
             value={log?.weight_kg ?? null}
             unit="kg"
             icon={<Weight size={16} color={COLORS.rosePrimary} />}
@@ -237,64 +249,76 @@ export default function DashboardScreen() {
             style={styles.metricHalf}
           />
           <MetricCard
-            label="Waist"
+            label={t('Waist')}
             value={log?.waist_cm ?? null}
             unit="cm"
             icon={<Ruler size={16} color={COLORS.roseAccent} />}
             accent={COLORS.roseAccent}
             style={styles.metricHalf}
           />
-          <MetricCard
-            label="Body Fat"
-            value={log?.body_fat_pct ?? null}
-            unit="%"
-            icon={<Percent size={16} color={COLORS.warning} />}
-            accent={COLORS.warning}
-            style={styles.metricHalf}
-          />
-          <MetricCard
-            label="Protein"
-            value={log?.protein_g ? Math.round(log.protein_g) : null}
-            unit="g"
-            icon={<Dumbbell size={16} color={COLORS.sageDark} />}
-            accent={COLORS.sageDark}
-            style={styles.metricHalf}
-          />
-          <MetricCard
-            label="Steps"
-            value={log?.steps ? log.steps.toLocaleString() : null}
-            icon={<Footprints size={16} color={COLORS.roseBeigeDeep} />}
-            accent={COLORS.roseBeigeDeep}
-            style={styles.metricHalf}
-          />
-          <MetricCard
-            label="Water"
-            value={log?.water_ml ? (log.water_ml / 1000).toFixed(1) : null}
-            unit="L"
-            icon={<Droplets size={16} color={COLORS.sage} />}
-            accent={COLORS.sage}
-            style={styles.metricHalf}
-          />
-          <MetricCard
-            label="Cycle Day"
-            value={log?.cycle_day ?? null}
-            icon={<Heart size={16} color={COLORS.roseBeige} />}
-            accent={COLORS.roseBeige}
-            style={styles.metricHalf}
-          />
-          <MetricCard
-            label="Score"
-            value={dailyScore}
-            unit="/ 100"
-            icon={<Star size={16} color={COLORS.warning} />}
-            accent={COLORS.warning}
-            style={styles.metricHalf}
-          />
+          {prefs.body_fat && (
+            <MetricCard
+              label={t('Body Fat')}
+              value={log?.body_fat_pct ?? null}
+              unit="%"
+              icon={<Percent size={16} color={COLORS.warning} />}
+              accent={COLORS.warning}
+              style={styles.metricHalf}
+            />
+          )}
+          {prefs.protein && (
+            <MetricCard
+              label={t('Protein')}
+              value={log?.protein_g ? Math.round(log.protein_g) : null}
+              unit="g"
+              icon={<Dumbbell size={16} color={COLORS.sageDark} />}
+              accent={COLORS.sageDark}
+              style={styles.metricHalf}
+            />
+          )}
+          {prefs.steps && (
+            <MetricCard
+              label={t('Steps')}
+              value={log?.steps ? log.steps.toLocaleString() : null}
+              icon={<Footprints size={16} color={COLORS.roseBeigeDeep} />}
+              accent={COLORS.roseBeigeDeep}
+              style={styles.metricHalf}
+            />
+          )}
+          {prefs.water && (
+            <MetricCard
+              label={t('Water')}
+              value={log?.water_ml ? (log.water_ml / 1000).toFixed(1) : null}
+              unit="L"
+              icon={<Droplets size={16} color={COLORS.sage} />}
+              accent={COLORS.sage}
+              style={styles.metricHalf}
+            />
+          )}
+          {prefs.cycle && (
+            <MetricCard
+              label={t('Cycle Day')}
+              value={cycleDay}
+              icon={<Heart size={16} color={COLORS.roseBeige} />}
+              accent={COLORS.roseBeige}
+              style={styles.metricHalf}
+            />
+          )}
+          {prefs.score && (
+            <MetricCard
+              label={t('Score')}
+              value={dailyScore}
+              unit="/ 100"
+              icon={<Star size={16} color={COLORS.warning} />}
+              accent={COLORS.warning}
+              style={styles.metricHalf}
+            />
+          )}
         </View>
 
         {/* Habit Checklist */}
         <SectionCard
-          title="Daily Habits"
+          title={t('Daily Habits')}
           rightHeader={
             <View style={[styles.habitBadge, { backgroundColor: completionPct >= 80 ? COLORS.successLight : COLORS.creamDark }]}>
               <Text style={[styles.habitBadgeText, { color: completionPct >= 80 ? COLORS.success : COLORS.charcoalMuted }]}>
@@ -313,7 +337,7 @@ export default function DashboardScreen() {
                 activeOpacity={0.7}
               >
                 <View style={styles.habitIcon}>{HABIT_ICONS[habit.key]}</View>
-                <Text style={[styles.habitLabel, done && styles.habitLabelDone]}>{habit.label}</Text>
+                <Text style={[styles.habitLabel, done && styles.habitLabelDone]}>{t(habit.label)}</Text>
                 <View style={styles.habitCheck}>
                   {done
                     ? <CheckCircle2 size={22} color={COLORS.success} />
@@ -332,10 +356,10 @@ export default function DashboardScreen() {
       <ModalSheet
         visible={showEdit}
         onClose={() => setShowEdit(false)}
-        title={isToday ? "Log Today's Metrics" : `Edit ${formatDisplayDate(viewDate)}`}
+        title={isToday ? t("Log Today's Metrics") : t('Edit {x}', { x: formatDisplayDate(viewDate) })}
       >
         <InputField
-          label="Weight"
+          label={t('Weight')}
           value={form.weight_kg}
           onChangeText={v => setForm(f => ({ ...f, weight_kg: sanitizeDecimalInput(v) }))}
           keyboardType="decimal-pad"
@@ -343,7 +367,7 @@ export default function DashboardScreen() {
           placeholder="e.g. 68.5"
         />
         <InputField
-          label="Waist Circumference"
+          label={t('Waist Circumference')}
           value={form.waist_cm}
           onChangeText={v => setForm(f => ({ ...f, waist_cm: sanitizeDecimalInput(v) }))}
           keyboardType="decimal-pad"
@@ -351,7 +375,7 @@ export default function DashboardScreen() {
           placeholder="e.g. 78"
         />
         <InputField
-          label="Body Fat"
+          label={t('Body Fat')}
           value={form.body_fat_pct}
           onChangeText={v => setForm(f => ({ ...f, body_fat_pct: sanitizeDecimalInput(v) }))}
           keyboardType="decimal-pad"
@@ -359,14 +383,14 @@ export default function DashboardScreen() {
           placeholder="e.g. 28"
         />
         <InputField
-          label="Steps"
+          label={t('Steps')}
           value={form.steps}
           onChangeText={v => setForm(f => ({ ...f, steps: sanitizeIntegerInput(v) }))}
           keyboardType="number-pad"
           placeholder="e.g. 8500"
         />
         <InputField
-          label="Water"
+          label={t('Water')}
           value={form.water_ml}
           onChangeText={v => setForm(f => ({ ...f, water_ml: sanitizeIntegerInput(v) }))}
           keyboardType="number-pad"
@@ -374,14 +398,14 @@ export default function DashboardScreen() {
           placeholder="e.g. 2000"
         />
         <InputField
-          label="Protein"
+          label={t('Protein')}
           value={form.protein_g}
           onChangeText={v => setForm(f => ({ ...f, protein_g: sanitizeDecimalInput(v) }))}
           keyboardType="decimal-pad"
           unit="g"
           placeholder="e.g. 95"
         />
-        <PrimaryButton label="Save Metrics" onPress={handleSave} loading={saving} />
+        <PrimaryButton label={t('Save Metrics')} onPress={handleSave} loading={saving} />
       </ModalSheet>
     </SafeAreaView>
   );
