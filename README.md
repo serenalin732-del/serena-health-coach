@@ -50,11 +50,20 @@ supabase functions deploy send-reminders --no-verify-jwt
 
 ### AI coaching (`coach`)
 
+The function auto-selects a provider. Use **either**:
+
 ```bash
+# Option A — OpenRouter (OpenAI-compatible; routes to many models)
+supabase secrets set OPENROUTER_API_KEY=sk-or-...
+supabase secrets set COACH_MODEL=anthropic/claude-3.5-sonnet   # any openrouter.ai/models slug
+
+# Option B — Anthropic direct
 supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+supabase secrets set COACH_MODEL=claude-opus-4-8               # optional (this is the default)
 ```
 
-Until the key is set the coaching card shows a friendly "not configured" state.
+If both keys are set, OpenRouter wins. Until at least one is set, the coaching
+card shows a friendly "not configured" state.
 
 ### Daily reminders (`send-reminders`) — push + email
 
@@ -69,16 +78,9 @@ Until the key is set the coaching card shows a friendly "not configured" state.
    secret named `EXPO_PUBLIC_VAPID_PUBLIC_KEY` (it gets baked into the web build
    so the browser can subscribe), and reference it in `.github/workflows/deploy.yml`
    build env.
-4. **Schedule it** (Supabase SQL editor, runs every 15 min):
-   ```sql
-   select cron.schedule('send-reminders', '*/15 * * * *', $$
-     select net.http_post(
-       url := 'https://<PROJECT_REF>.supabase.co/functions/v1/send-reminders',
-       headers := jsonb_build_object('Content-Type','application/json','x-cron-secret','<CRON_SECRET>'),
-       body := '{}'::jsonb
-     );
-   $$);
-   ```
+4. **Schedule it** — run [`supabase/cron/reminders.sql`](supabase/cron/reminders.sql)
+   in the Supabase SQL editor (replace `<PROJECT_REF>` and `<CRON_SECRET>`). It
+   enables `pg_cron`/`pg_net` and runs `send-reminders` every 15 minutes.
 
 > **iOS note:** web push on iOS requires the site be installed as a PWA
 > (Share → *Add to Home Screen*, iOS 16.4+). Desktop Chrome/Edge and Android

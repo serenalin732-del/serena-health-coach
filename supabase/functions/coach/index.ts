@@ -1,11 +1,17 @@
 // Supabase Edge Function: "coach"
 // Reads the signed-in user's recent health data (under RLS, using their own
-// access token) and asks Claude for short, specific, data-grounded coaching.
+// access token) and asks an LLM for short, specific, data-grounded coaching.
+//
+// Provider is auto-selected:
+//   - If OPENROUTER_API_KEY is set  -> OpenRouter (OpenAI-compatible), model COACH_MODEL
+//     (default "anthropic/claude-3.5-sonnet" — change COACH_MODEL to any OpenRouter model).
+//   - Else if ANTHROPIC_API_KEY is set -> Anthropic direct, model COACH_MODEL
+//     (default "claude-opus-4-8").
+//   - Else -> ships gracefully disabled ({code:'not_configured'}).
 //
 // Deploy:  supabase functions deploy coach
-// Secret:  supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
-//
-// SUPABASE_URL and SUPABASE_ANON_KEY are injected automatically by the platform.
+// Secret:  supabase secrets set OPENROUTER_API_KEY=sk-or-...   (or ANTHROPIC_API_KEY=sk-ant-...)
+//          supabase secrets set COACH_MODEL=anthropic/claude-3.5-sonnet   (optional)
 import Anthropic from 'npm:@anthropic-ai/sdk@0.68.0';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
@@ -81,6 +87,45 @@ function buildSummary(daily: DailyRow[], habits: HabitRow[]): string {
   return lines.join('\n');
 }
 
+async function viaOpenRouter(apiKey: string, userPrompt: string): Promise<string> {
+  const model = Deno.env.get('COACH_MODEL') ?? 'anthropic/claude-3.5-sonnet';
+  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'X-Title': 'Serena Health Coach',
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 400,
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: userPrompt },
+      ],
+    }),
+  });
+  if (!res.ok) throw new Error(`OpenRouter ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  return (data?.choices?.[0]?.message?.content ?? '').trim();
+}
+
+async function viaAnthropic(apiKey: string, userPrompt: string): Promise<string> {
+  const model = Deno.env.get('COACH_MODEL') ?? 'claude-opus-4-8';
+  const anthropic = new Anthropic({ apiKey });
+  const message = await anthropic.messages.create({
+    model,
+    max_tokens: 400,
+    system: SYSTEM_PROMPT,
+    messages: [{ role: 'user', content: userPrompt }],
+  });
+  return message.content
+    .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+    .map((b) => b.text)
+    .join('')
+    .trim();
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -106,9 +151,10 @@ Deno.serve(async (req: Request) => {
     } = await supabase.auth.getUser();
     if (!user) return json({ error: 'Unauthorized' }, 401);
 
-    const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
-    if (!apiKey) {
-      // Ship gracefully disabled until the key is set.
+    const openrouterKey = Deno.env.get('OPENROUTER_API_KEY');
+    const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
+    if (!openrouterKey && !anthropicKey) {
+      // Ship gracefully disabled until a provider key is set.
       return json({ code: 'not_configured' });
     }
 
@@ -134,24 +180,10 @@ Deno.serve(async (req: Request) => {
       (habitRes.data ?? []) as HabitRow[]
     );
 
-    const anthropic = new Anthropic({ apiKey });
-    const message = await anthropic.messages.create({
-      model: 'claude-opus-4-8',
-      max_tokens: 400,
-      system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: `My recent health data (last 14 days):\n\n${summary}\n\nGive me today's coaching.`,
-        },
-      ],
-    });
-
-    const text = message.content
-      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-      .map((b) => b.text)
-      .join('')
-      .trim();
+    const userPrompt = `My recent health data (last 14 days):\n\n${summary}\n\nGive me today's coaching.`;
+    const text = openrouterKey
+      ? await viaOpenRouter(openrouterKey, userPrompt)
+      : await viaAnthropic(anthropicKey!, userPrompt);
 
     return json({ coaching: text });
   } catch (e) {

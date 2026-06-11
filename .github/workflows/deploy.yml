@@ -35,6 +35,27 @@ jobs:
           npm run typecheck
           npm test
 
+      - name: Verify VAPID public key
+        # Optional: if the push key is set, fail fast on a malformed value so a
+        # broken key never silently ships. If unset, push enrollment just stays
+        # disabled — not an error.
+        env:
+          VAPID: ${{ secrets.EXPO_PUBLIC_VAPID_PUBLIC_KEY }}
+        run: |
+          if [ -z "$VAPID" ]; then
+            echo "ℹ️  EXPO_PUBLIC_VAPID_PUBLIC_KEY not set — web push enrollment stays disabled."
+            exit 0
+          fi
+          b64=$(printf '%s' "$VAPID" | tr '_-' '/+')
+          pad=$(( (4 - ${#b64} % 4) % 4 ))
+          b64="$b64$(printf '=%.0s' $(seq 1 $pad))"
+          bytes=$(printf '%s' "$b64" | base64 -d 2>/dev/null | wc -c)
+          if [ "$bytes" -ne 65 ]; then
+            echo "❌ EXPO_PUBLIC_VAPID_PUBLIC_KEY decodes to $bytes bytes (expected 65 for a P-256 VAPID key). Check the key."
+            exit 1
+          fi
+          echo "✅ VAPID public key looks valid (65 bytes)."
+
       - name: Build web export
         run: npm run build:web
         env:
