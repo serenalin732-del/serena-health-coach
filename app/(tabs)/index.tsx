@@ -26,6 +26,8 @@ import {
   CheckCircle2,
   Circle,
   FlameIcon,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react-native';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOW } from '@/lib/theme';
 import { MetricCard, SectionCard } from '@/components/Cards';
@@ -42,6 +44,8 @@ import { HABITS } from '@/lib/types';
 import {
   todayStr,
   formatFullDate,
+  formatDisplayDate,
+  shiftDate,
   sanitizeDecimalInput,
   sanitizeIntegerInput,
   parseNumericInput,
@@ -83,8 +87,11 @@ const HABIT_ICONS: Record<string, React.ReactNode> = {
 export default function DashboardScreen() {
   const { user } = useAuth();
   const userId = user?.id ?? '';
-  const today = todayStr();
-  const { log, habits, loading, saving, saveLog, toggleHabit, completedCount, totalHabits, completionPct, dailyScore, refresh } = useDailyLog(userId, today);
+  // The day being viewed/edited. Defaults to today; ◀ ▶ moves between days so
+  // past entries can be fixed.
+  const [viewDate, setViewDate] = useState(todayStr());
+  const isToday = viewDate === todayStr();
+  const { log, habits, loading, saving, saveLog, toggleHabit, completedCount, totalHabits, completionPct, dailyScore, refresh } = useDailyLog(userId, viewDate);
   const week = useWeeklySummary(userId);
   const coach = useCoach();
   const [showEdit, setShowEdit] = useState(false);
@@ -139,11 +146,28 @@ export default function DashboardScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.dateText}>{formatFullDate(today)}</Text>
-            <Text style={styles.greeting}>Good morning!</Text>
+            <View style={styles.dateNav}>
+              <TouchableOpacity
+                onPress={() => setViewDate(d => shiftDate(d, -1))}
+                style={styles.dateNavBtn}
+                accessibilityLabel="Previous day"
+              >
+                <ChevronLeft size={18} color={COLORS.charcoalMed} />
+              </TouchableOpacity>
+              <Text style={styles.dateText}>{formatFullDate(viewDate)}</Text>
+              <TouchableOpacity
+                onPress={() => setViewDate(d => shiftDate(d, 1))}
+                style={styles.dateNavBtn}
+                disabled={isToday}
+                accessibilityLabel="Next day"
+              >
+                <ChevronRight size={18} color={isToday ? COLORS.creamBorder : COLORS.charcoalMed} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.greeting}>{isToday ? 'Good morning!' : 'Editing a past day'}</Text>
           </View>
           <TouchableOpacity onPress={openEdit} style={styles.editBtn}>
-            <Text style={styles.editBtnTxt}>Edit Today</Text>
+            <Text style={styles.editBtnTxt}>{isToday ? 'Edit Today' : 'Edit This Day'}</Text>
           </TouchableOpacity>
         </View>
 
@@ -155,6 +179,11 @@ export default function DashboardScreen() {
           latestWaist={week.latestWaist}
           onLogWeight={v => quickLog({ weight_kg: v })}
           onLogWaist={v => quickLog({ waist_cm: v })}
+          subtitle={
+            isToday
+              ? 'Tap to log today — saves instantly'
+              : `Editing ${formatDisplayDate(viewDate)} — saves to that day`
+          }
         />
 
         {/* Score Card */}
@@ -300,7 +329,11 @@ export default function DashboardScreen() {
       </ScrollView>
 
       {/* Edit Modal */}
-      <ModalSheet visible={showEdit} onClose={() => setShowEdit(false)} title="Log Today's Metrics">
+      <ModalSheet
+        visible={showEdit}
+        onClose={() => setShowEdit(false)}
+        title={isToday ? "Log Today's Metrics" : `Edit ${formatDisplayDate(viewDate)}`}
+      >
         <InputField
           label="Weight"
           value={form.weight_kg}
@@ -364,6 +397,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.md,
     paddingBottom: SPACING.md,
+  },
+  dateNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    marginLeft: -8,
+  },
+  dateNavBtn: {
+    padding: 6,
   },
   dateText: {
     fontFamily: FONTS.regular,

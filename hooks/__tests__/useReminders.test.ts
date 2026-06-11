@@ -80,6 +80,27 @@ describe('useReminders', () => {
     expect(payload.reminder_email).toBe('serena@example.com');
   });
 
+  it('saves goal fields via the generic save()', async () => {
+    const { result } = renderHook(() => useReminders('u1'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    let err;
+    await act(async () => {
+      err = await result.current.save({
+        target_weight_kg: 55,
+        target_waist_cm: 80,
+        goal_focus: 'fat loss',
+      });
+    });
+
+    expect(err).toBeNull();
+    const [payload] = mockUpsertCalls[mockUpsertCalls.length - 1] as [any];
+    expect(payload.target_weight_kg).toBe(55);
+    expect(payload.target_waist_cm).toBe(80);
+    expect(payload.goal_focus).toBe('fat loss');
+    expect(result.current.settings.target_weight_kg).toBe(55);
+  });
+
   it('enables push and records push_enabled when enrollment succeeds', async () => {
     const { result } = renderHook(() => useReminders('u1'));
     await waitFor(() => expect(result.current.loading).toBe(false));

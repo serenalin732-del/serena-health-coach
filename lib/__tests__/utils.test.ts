@@ -7,6 +7,7 @@ import {
   formatDisplayDate,
   formatFullDate,
   calcCycleDay,
+  shiftDate,
   sanitizeDecimalInput,
   sanitizeIntegerInput,
   parseNumericInput,
@@ -135,6 +136,18 @@ describe('calcCycleDay', () => {
   it('handles starts that cross a month boundary', () => {
     // May 31 -> Jun 10 is 10 days elapsed = cycle day 11
     expect(calcCycleDay('2026-05-31')).toBe(11);
+  });
+});
+
+describe('shiftDate', () => {
+  it('shifts forward and backward', () => {
+    expect(shiftDate('2026-06-10', -1)).toBe('2026-06-09');
+    expect(shiftDate('2026-06-10', 1)).toBe('2026-06-11');
+  });
+
+  it('crosses month and year boundaries', () => {
+    expect(shiftDate('2026-06-01', -1)).toBe('2026-05-31');
+    expect(shiftDate('2026-01-01', -1)).toBe('2025-12-31');
   });
 });
 
