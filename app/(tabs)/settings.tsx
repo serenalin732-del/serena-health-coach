@@ -50,6 +50,8 @@ export default function SettingsScreen() {
   const [profileForm, setProfileForm] = useState({ full_name: '', height_cm: '' });
   const [saving, setSaving] = useState(false);
   const [showGoals, setShowGoals] = useState(false);
+  const [showSync, setShowSync] = useState(false);
+  const [syncBusy, setSyncBusy] = useState(false);
   const [goalsForm, setGoalsForm] = useState({ target_weight_kg: '', target_waist_cm: '', goal_focus: '' });
   const [savingGoals, setSavingGoals] = useState(false);
   const reminders = useReminders(userId);
@@ -148,6 +150,24 @@ export default function SettingsScreen() {
       return;
     }
     setShowGoals(false);
+  };
+
+  const syncUrl = reminders.settings.sync_token
+    ? `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/sync-sleep?token=${reminders.settings.sync_token}`
+    : null;
+
+  const openSync = async () => {
+    setShowSync(true);
+    if (!reminders.settings.sync_token) {
+      // First open: mint a personal token (random, unguessable).
+      setSyncBusy(true);
+      const token = Array.from(crypto.getRandomValues(new Uint8Array(24)))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+      const error = await reminders.save({ sync_token: token });
+      setSyncBusy(false);
+      if (error) Alert.alert(t('Something went wrong'), error.message);
+    }
   };
 
   const goalSummary =
@@ -309,6 +329,12 @@ export default function SettingsScreen() {
 
         {/* Data Management */}
         <SectionCard title={t('Data')}>
+          <SettingsRow
+            icon={<Moon size={18} color={COLORS.sageDark} />}
+            label={t('Sleep Sync')}
+            sublabel={t('Auto-import sleep from Garmin / Apple Health')}
+            onPress={openSync}
+          />
           <SettingsRow icon={<Download size={18} color={COLORS.sage} />} label={t('Export Data')} sublabel={t('Download your health data')} onPress={() => {}} />
           <SettingsRow icon={<Upload size={18} color={COLORS.sage} />} label={t('Import Data')} sublabel={t('Upload from another device')} onPress={() => {}} />
           <SettingsRow icon={<Shield size={18} color={COLORS.sage} />} label={t('Backup Data')} sublabel={t('Auto-synced to Supabase')} onPress={() => {}} showChevron={false} />
@@ -372,6 +398,16 @@ export default function SettingsScreen() {
           placeholder={t('e.g. fat loss, better sleep, keep muscle')}
         />
         <PrimaryButton label={t('Save Goals')} onPress={saveGoals} loading={savingGoals} />
+      </ModalSheet>
+
+      <ModalSheet visible={showSync} onClose={() => setShowSync(false)} title={t('Sleep Sync')}>
+        <Text style={styles.syncText}>{t('Your personal sync link (keep it private):')}</Text>
+        {syncBusy ? (
+          <Text style={styles.syncText}>…</Text>
+        ) : syncUrl ? (
+          <InputField label="URL" value={syncUrl} onChangeText={() => {}} multiline />
+        ) : null}
+        <Text style={styles.syncText}>{t('Use it in an iPhone Shortcut to send last night\u2019s sleep automatically — setup steps are in the chat guide.')}</Text>
       </ModalSheet>
     </SafeAreaView>
   );
@@ -475,6 +511,12 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.medium,
     fontSize: 13,
     color: COLORS.charcoalMed,
+  },
+  syncText: {
+    fontFamily: FONTS.regular,
+    fontSize: 13,
+    color: COLORS.charcoalMed,
+    marginBottom: SPACING.sm,
   },
   langRow: {
     flexDirection: 'row',
