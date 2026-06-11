@@ -108,6 +108,9 @@ export interface UserSettings {
   email_reminders: boolean;
   timezone: string | null;
   reminder_email: string | null;
+  target_weight_kg: number | null;
+  target_waist_cm: number | null;
+  goal_focus: string | null;
   created_at: string;
   updated_at: string;
 }

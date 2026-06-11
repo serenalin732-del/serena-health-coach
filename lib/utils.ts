@@ -20,6 +20,13 @@ export function subtractDays(days: number): string {
   return formatDate(d);
 }
 
+// Shift a YYYY-MM-DD date string by N days (negative = backwards).
+export function shiftDate(dateStr: string, days: number): string {
+  const d = parseDate(dateStr);
+  d.setDate(d.getDate() + days);
+  return formatDate(d);
+}
+
 export function getDatesRange(days: number): string[] {
   const dates: string[] = [];
   for (let i = days - 1; i >= 0; i--) {

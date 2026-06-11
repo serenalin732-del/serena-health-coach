@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Switch,
   Alert,
 } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import {
   LogOut,
   Download,
@@ -20,6 +21,7 @@ import {
   Utensils,
   Bell,
   Mail,
+  Target,
 } from 'lucide-react-native';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOW } from '@/lib/theme';
 import { SectionCard } from '@/components/Cards';
@@ -28,6 +30,7 @@ import { InputField, PrimaryButton } from '@/components/Inputs';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { useReminders, type ReminderKey } from '@/hooks/useReminders';
+import { sanitizeDecimalInput, parseNumericInput } from '@/lib/utils';
 import type { UserProfile } from '@/lib/types';
 
 export default function SettingsScreen() {
@@ -38,16 +41,28 @@ export default function SettingsScreen() {
   const [showProfileEdit, setShowProfileEdit] = useState(false);
   const [profileForm, setProfileForm] = useState({ full_name: '', height_cm: '' });
   const [saving, setSaving] = useState(false);
+  const [showGoals, setShowGoals] = useState(false);
+  const [goalsForm, setGoalsForm] = useState({ target_weight_kg: '', target_waist_cm: '', goal_focus: '' });
+  const [savingGoals, setSavingGoals] = useState(false);
   const reminders = useReminders(userId);
 
-  useEffect(() => {
-    supabase
+  const fetchProfile = useCallback(async () => {
+    if (!userId) return;
+    const { data } = await supabase
       .from('user_profiles')
       .select('*')
       .eq('id', userId)
-      .maybeSingle()
-      .then(({ data }) => setProfile(data as UserProfile | null));
+      .maybeSingle();
+    setProfile(data as UserProfile | null);
   }, [userId]);
+
+  // Refetch whenever the tab regains focus, so the screen always shows what's
+  // actually saved in the database.
+  useFocusEffect(
+    useCallback(() => {
+      fetchProfile();
+    }, [fetchProfile])
+  );
 
   const toggleReminder = (key: ReminderKey) => reminders.toggle(key);
 
@@ -73,16 +88,66 @@ export default function SettingsScreen() {
   };
 
   const saveProfile = async () => {
+    if (!userId) {
+      Alert.alert('Not signed in', 'Please sign in again and retry.');
+      return;
+    }
     setSaving(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('user_profiles')
-      .upsert({ id: userId, full_name: profileForm.full_name, height_cm: profileForm.height_cm ? parseFloat(profileForm.height_cm) : null }, { onConflict: 'id' })
+      .upsert(
+        {
+          id: userId,
+          email: profile?.email ?? user?.email ?? null,
+          full_name: profileForm.full_name.trim() || null,
+          height_cm: parseNumericInput(profileForm.height_cm),
+        },
+        { onConflict: 'id' }
+      )
       .select()
       .maybeSingle();
-    if (data) setProfile(data as UserProfile);
     setSaving(false);
+    if (error) {
+      // Surface the failure instead of silently dropping the change.
+      Alert.alert('Could not save profile', error.message);
+      return;
+    }
+    if (data) setProfile(data as UserProfile);
     setShowProfileEdit(false);
   };
+
+  const openGoals = () => {
+    setGoalsForm({
+      target_weight_kg: reminders.settings.target_weight_kg != null ? String(reminders.settings.target_weight_kg) : '',
+      target_waist_cm: reminders.settings.target_waist_cm != null ? String(reminders.settings.target_waist_cm) : '',
+      goal_focus: reminders.settings.goal_focus ?? '',
+    });
+    setShowGoals(true);
+  };
+
+  const saveGoals = async () => {
+    setSavingGoals(true);
+    const error = await reminders.save({
+      target_weight_kg: parseNumericInput(goalsForm.target_weight_kg),
+      target_waist_cm: parseNumericInput(goalsForm.target_waist_cm),
+      goal_focus: goalsForm.goal_focus.trim() || null,
+    });
+    setSavingGoals(false);
+    if (error) {
+      Alert.alert('Could not save goals', error.message);
+      return;
+    }
+    setShowGoals(false);
+  };
+
+  const goalSummary =
+    [
+      reminders.settings.target_weight_kg != null ? `${reminders.settings.target_weight_kg} kg` : null,
+      reminders.settings.target_waist_cm != null ? `${reminders.settings.target_waist_cm} cm waist` : null,
+      reminders.settings.goal_focus || null,
+    ]
+      .filter(Boolean)
+      .join(' · ') || 'Tell your AI coach what you are aiming for';
 
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -111,6 +176,16 @@ export default function SettingsScreen() {
             <Text style={styles.editProfileTxt}>Edit</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Goals */}
+        <SectionCard title="Goals">
+          <SettingsRow
+            icon={<Target size={18} color={COLORS.rosePrimary} />}
+            label="My Goals"
+            sublabel={goalSummary}
+            onPress={openGoals}
+          />
+        </SectionCard>
 
         {/* Reminders */}
         <SectionCard title="Reminders">
@@ -200,6 +275,32 @@ export default function SettingsScreen() {
           placeholder="e.g. 165"
         />
         <PrimaryButton label="Save Profile" onPress={saveProfile} loading={saving} />
+      </ModalSheet>
+
+      <ModalSheet visible={showGoals} onClose={() => setShowGoals(false)} title="My Goals">
+        <InputField
+          label="Target Weight"
+          value={goalsForm.target_weight_kg}
+          onChangeText={v => setGoalsForm(f => ({ ...f, target_weight_kg: sanitizeDecimalInput(v) }))}
+          keyboardType="decimal-pad"
+          unit="kg"
+          placeholder="e.g. 55"
+        />
+        <InputField
+          label="Target Waist"
+          value={goalsForm.target_waist_cm}
+          onChangeText={v => setGoalsForm(f => ({ ...f, target_waist_cm: sanitizeDecimalInput(v) }))}
+          keyboardType="decimal-pad"
+          unit="cm"
+          placeholder="e.g. 80"
+        />
+        <InputField
+          label="Focus (what matters to you)"
+          value={goalsForm.goal_focus}
+          onChangeText={v => setGoalsForm(f => ({ ...f, goal_focus: v }))}
+          placeholder="e.g. fat loss, better sleep, keep muscle"
+        />
+        <PrimaryButton label="Save Goals" onPress={saveGoals} loading={savingGoals} />
       </ModalSheet>
     </SafeAreaView>
   );

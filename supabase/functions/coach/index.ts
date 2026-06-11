@@ -30,7 +30,8 @@ Rules:
 - Respond with ONLY the coaching. No preamble, no meta-commentary, no headings, no sign-off.
 - Keep it under 110 words total. Use short sentences or brief bullet lines.
 - Warm and direct, never preachy. You are not a doctor; avoid medical claims.
-- If the data is sparse, encourage her to log a couple of metrics today.`;
+- If the data is sparse, encourage her to log a couple of metrics today.
+- If goals are provided, anchor the coaching to them: how far she is from each target, whether the recent trend is moving toward it at a healthy pace, and what to adjust today.`;
 
 type DailyRow = {
   log_date: string;
@@ -161,6 +162,13 @@ Deno.serve(async (req: Request) => {
     const since = new Date(Date.now() - 13 * 86_400_000)
       .toISOString()
       .slice(0, 10);
+    // Goals (optional columns — if the migration hasn't run yet this select
+    // errors and goalRow stays null, which is fine).
+    const { data: goalRow } = await supabase
+      .from('user_settings')
+      .select('target_weight_kg, target_waist_cm, goal_focus')
+      .eq('user_id', user.id)
+      .maybeSingle();
     const [dailyRes, habitRes] = await Promise.all([
       supabase
         .from('daily_logs')
@@ -180,7 +188,13 @@ Deno.serve(async (req: Request) => {
       (habitRes.data ?? []) as HabitRow[]
     );
 
-    const userPrompt = `My recent health data (last 14 days):\n\n${summary}\n\nGive me today's coaching.`;
+    const goalLines: string[] = [];
+    if (goalRow?.target_weight_kg != null) goalLines.push(`Target weight: ${goalRow.target_weight_kg} kg`);
+    if (goalRow?.target_waist_cm != null) goalLines.push(`Target waist: ${goalRow.target_waist_cm} cm`);
+    if (goalRow?.goal_focus) goalLines.push(`Stated focus: ${goalRow.goal_focus}`);
+    const goalsBlock = goalLines.length ? `\n\nMy goals:\n${goalLines.join('\n')}` : '';
+
+    const userPrompt = `My recent health data (last 14 days):\n\n${summary}${goalsBlock}\n\nGive me today's coaching.`;
     const text = openrouterKey
       ? await viaOpenRouter(openrouterKey, userPrompt)
       : await viaAnthropic(anthropicKey!, userPrompt);

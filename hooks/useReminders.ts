@@ -37,18 +37,21 @@ export function useReminders(userId: string | undefined) {
     };
   }, [userId]);
 
-  // Always stamp the current timezone so the sender fires at the right local time.
+  // Always stamp the current timezone so the sender fires at the right local
+  // time. Returns the database error (or null) so callers can surface failures
+  // instead of silently losing the change.
   const persist = useCallback(
-    async (patch: Partial<UserSettings>) => {
-      if (!userId) return;
+    async (patch: Partial<UserSettings>): Promise<{ message: string } | null> => {
+      if (!userId) return { message: 'Not signed in' };
       const next = { ...settings, ...patch };
       setSettings(next);
-      await supabase
+      const { error } = await supabase
         .from('user_settings')
         .upsert(
           { ...next, user_id: userId, timezone: deviceTimezone() },
           { onConflict: 'user_id' }
         );
+      return error ?? null;
     },
     [userId, settings]
   );
@@ -93,5 +96,7 @@ export function useReminders(userId: string | undefined) {
     toggle,
     setEmailReminders,
     setPushEnabled,
+    // Generic patch save (used for goals); returns the DB error or null.
+    save: persist,
   };
 }

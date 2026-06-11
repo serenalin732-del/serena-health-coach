@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   RefreshControl,
 } from 'react-native';
-import { Plus, Trash2, Coffee, Sun, Moon, Apple, Sparkles, Camera, ChevronRight } from 'lucide-react-native';
+import { Plus, Trash2, Coffee, Sun, Moon, Apple, Sparkles, Camera, ChevronRight, ChevronLeft } from 'lucide-react-native';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOW } from '@/lib/theme';
 import { SectionCard } from '@/components/Cards';
 import { ModalSheet } from '@/components/UI';
@@ -17,7 +17,7 @@ import { useMeals } from '@/hooks/useMeals';
 import { useMealAnalysis, type MealEstimate } from '@/hooks/useMealAnalysis';
 import { pickMealImage } from '@/lib/imagePicker';
 import { useAuth } from '@/hooks/useAuth';
-import { todayStr, sanitizeDecimalInput, parseNumericInput } from '@/lib/utils';
+import { todayStr, shiftDate, formatDisplayDate, sanitizeDecimalInput, parseNumericInput } from '@/lib/utils';
 import type { MealLog } from '@/lib/types';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -32,8 +32,10 @@ const MEAL_CONFIG: Record<MealType, { label: string; icon: React.ReactNode; colo
 export default function FoodScreen() {
   const { user } = useAuth();
   const userId = user?.id ?? '';
-  const today = todayStr();
-  const { byType, totals, loading, addMeal, deleteMeal, refresh } = useMeals(userId, today);
+  // The day being viewed/edited; ◀ ▶ moves between days to fix past meals.
+  const [viewDate, setViewDate] = useState(todayStr());
+  const isToday = viewDate === todayStr();
+  const { byType, totals, loading, addMeal, deleteMeal, refresh } = useMeals(userId, viewDate);
   const [showAdd, setShowAdd] = useState(false);
   const [mealType, setMealType] = useState<MealType>('breakfast');
   const [saving, setSaving] = useState(false);
@@ -89,7 +91,7 @@ export default function FoodScreen() {
     if (!form.food_name.trim()) return;
     setSaving(true);
     await addMeal({
-      log_date: today,
+      log_date: viewDate,
       meal_type: mealType,
       food_name: form.food_name.trim(),
       calories: parseNumericInput(form.calories),
@@ -117,7 +119,24 @@ export default function FoodScreen() {
       >
         <View style={styles.header}>
           <Text style={styles.pageTitle}>Nutrition</Text>
-          <Text style={styles.pageDate}>{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Text>
+          <View style={styles.dateNav}>
+            <TouchableOpacity
+              onPress={() => setViewDate(d => shiftDate(d, -1))}
+              style={styles.dateNavBtn}
+              accessibilityLabel="Previous day"
+            >
+              <ChevronLeft size={18} color={COLORS.charcoalMed} />
+            </TouchableOpacity>
+            <Text style={styles.pageDate}>{isToday ? 'Today' : formatDisplayDate(viewDate)}</Text>
+            <TouchableOpacity
+              onPress={() => setViewDate(d => shiftDate(d, 1))}
+              style={styles.dateNavBtn}
+              disabled={isToday}
+              accessibilityLabel="Next day"
+            >
+              <ChevronRight size={18} color={isToday ? COLORS.creamBorder : COLORS.charcoalMed} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Totals Banner */}
@@ -303,6 +322,14 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.regular,
     fontSize: 14,
     color: COLORS.charcoalMuted,
+  },
+  dateNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  dateNavBtn: {
+    padding: 6,
   },
   totalsBanner: {
     flexDirection: 'row',

@@ -106,6 +106,7 @@ interface QuickLogCardProps {
   latestWaist: number | null;
   onLogWeight: (v: number) => Promise<unknown> | void;
   onLogWaist: (v: number) => Promise<unknown> | void;
+  subtitle?: string;
 }
 
 export function QuickLogCard({
@@ -115,11 +116,12 @@ export function QuickLogCard({
   latestWaist,
   onLogWeight,
   onLogWaist,
+  subtitle = 'Tap to log today — saves instantly',
 }: QuickLogCardProps) {
   return (
     <View style={styles.card}>
       <Text style={styles.cardTitle}>Quick Log</Text>
-      <Text style={styles.cardSub}>Tap to log today — saves instantly</Text>
+      <Text style={styles.cardSub}>{subtitle}</Text>
       <QuickLogRow
         label="Weight"
         icon={<TrendingDown size={16} color={COLORS.rosePrimary} />}
