@@ -14,12 +14,16 @@ import {
   FlaskConical,
   Activity,
   Plus,
+  Camera,
+  Sparkles,
 } from 'lucide-react-native';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOW } from '@/lib/theme';
 import { SectionCard } from '@/components/Cards';
 import { ModalSheet, Tag } from '@/components/UI';
 import { InputField, PrimaryButton } from '@/components/Inputs';
 import { useSleepLog, useCycleLogs, useLabResults, useCgmLog } from '@/hooks/useHealth';
+import { useLabAnalysis, type LabEstimate } from '@/hooks/useLabAnalysis';
+import { pickDocumentImage } from '@/lib/imagePicker';
 import { useAuth } from '@/hooks/useAuth';
 import { useI18n } from '@/lib/i18n';
 import { usePrefs } from '@/lib/prefs';
@@ -38,6 +42,7 @@ export default function HealthScreen() {
   const { logs: cycleLogs, latest: latestCycle, addLog: addCycle, refresh: refreshCycles } = useCycleLogs(userId);
   const { results: labResults, addResult: addLab, refresh: refreshLabs } = useLabResults(userId);
   const { log: cgmLog, save: saveCgm } = useCgmLog(userId, today);
+  const labAnalysis = useLabAnalysis();
 
   const [activeModal, setActiveModal] = useState<HealthSection | null>(null);
   const [saving, setSaving] = useState(false);
@@ -49,6 +54,7 @@ export default function HealthScreen() {
   const [cycleForm, setCycleForm] = useState({ period_start: '', cycle_length_days: '28', notes: '' });
   // Lab form
   const [labForm, setLabForm] = useState({ test_date: today, cortisol: '', vitamin_d: '', progesterone: '', glucose: '', hba1c: '', cholesterol: '', notes: '' });
+  const [labNote, setLabNote] = useState('');
   // CGM form
   const [cgmForm, setCgmForm] = useState({ daily_avg_glucose: '', time_in_range_pct: '', notes: '' });
 
@@ -87,6 +93,28 @@ export default function HealthScreen() {
     });
     setSaving(false);
     setActiveModal(null);
+  };
+
+  const applyLabEstimate = (e: LabEstimate) => {
+    const s = (n: number | null) => (n != null ? String(n) : '');
+    setLabForm(f => ({
+      test_date: e.test_date || f.test_date,
+      cortisol: s(e.cortisol),
+      vitamin_d: s(e.vitamin_d),
+      progesterone: s(e.progesterone),
+      glucose: s(e.glucose),
+      hba1c: s(e.hba1c),
+      cholesterol: s(e.cholesterol),
+      notes: f.notes,
+    }));
+    setLabNote(e.note || '');
+  };
+
+  const scanLabReport = async () => {
+    const image = await pickDocumentImage();
+    if (!image) return; // cancelled or unsupported
+    const result = await labAnalysis.analyze(image);
+    if (result) applyLabEstimate(result);
   };
 
   const handleSaveCgm = async () => {
@@ -257,6 +285,19 @@ export default function HealthScreen() {
 
       {/* Labs Modal */}
       <ModalSheet visible={activeModal === 'labs'} onClose={() => setActiveModal(null)} title={t('Add Lab Results')}>
+        <View style={styles.aiBlock}>
+          <View style={styles.aiBlockHead}>
+            <Sparkles size={15} color={COLORS.rosePrimary} />
+            <Text style={styles.aiBlockTitle}>{t('Scan Lab Report')}</Text>
+          </View>
+          <Text style={styles.aiSub}>{t('Snap a photo of your report and AI fills in the numbers.')}</Text>
+          <TouchableOpacity onPress={scanLabReport} disabled={labAnalysis.loading} style={styles.photoBtn} activeOpacity={0.8}>
+            <Camera size={16} color={COLORS.sageDark} />
+            <Text style={styles.photoBtnText}>{labAnalysis.loading ? t('Reading your report…') : t('Scan Report')}</Text>
+          </TouchableOpacity>
+          {labAnalysis.error && <Text style={styles.aiError}>{t(labAnalysis.error)}</Text>}
+          {labNote ? <Text style={styles.aiNote}>{labNote} — {t('adjust the numbers below if needed.')}</Text> : null}
+        </View>
         <InputField label={t('Test Date (YYYY-MM-DD)')} value={labForm.test_date} onChangeText={v => setLabForm(f => ({ ...f, test_date: v }))} placeholder={today} />
         <InputField label={t('Cortisol')} value={labForm.cortisol} onChangeText={v => setLabForm(f => ({ ...f, cortisol: v }))} keyboardType="decimal-pad" unit="nmol/L" placeholder="" />
         <InputField label={t('Vitamin D')} value={labForm.vitamin_d} onChangeText={v => setLabForm(f => ({ ...f, vitamin_d: v }))} keyboardType="decimal-pad" unit="nmol/L" placeholder="" />
@@ -293,6 +334,57 @@ function LabValue({ label, value, unit }: { label: string; value: number | null;
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.cream },
   scroll: { flex: 1 },
+  aiBlock: {
+    backgroundColor: COLORS.roseBeigeLight,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.roseBeige,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  aiBlockHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  aiBlockTitle: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 14,
+    color: COLORS.roseAccent,
+  },
+  aiSub: {
+    fontFamily: FONTS.regular,
+    fontSize: 12,
+    color: COLORS.charcoalMed,
+    marginBottom: SPACING.sm,
+  },
+  photoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: COLORS.sagePale,
+    borderRadius: RADIUS.xxl,
+    paddingVertical: 14,
+  },
+  photoBtnText: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 15,
+    color: COLORS.sageDark,
+  },
+  aiError: {
+    fontFamily: FONTS.regular,
+    fontSize: 12,
+    color: COLORS.error,
+    marginTop: SPACING.sm,
+  },
+  aiNote: {
+    fontFamily: FONTS.regular,
+    fontSize: 12,
+    color: COLORS.charcoalMed,
+    marginTop: SPACING.sm,
+  },
   header: {
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.md,
