@@ -33,7 +33,9 @@ import { ModalSheet } from '@/components/UI';
 import { ProgressBar } from '@/components/UI';
 import { InputField, PrimaryButton } from '@/components/Inputs';
 import { useDailyLog } from '@/hooks/useDailyLog';
+import { useWeeklySummary } from '@/hooks/useWeeklySummary';
 import { useAuth } from '@/hooks/useAuth';
+import { QuickLogCard, WeeklySummaryCard } from '@/components/DailyCards';
 import { HABITS } from '@/lib/types';
 import {
   todayStr,
@@ -81,9 +83,15 @@ export default function DashboardScreen() {
   const userId = user?.id ?? '';
   const today = todayStr();
   const { log, habits, loading, saving, saveLog, toggleHabit, completedCount, totalHabits, completionPct, dailyScore, refresh } = useDailyLog(userId, today);
+  const week = useWeeklySummary(userId);
   const [showEdit, setShowEdit] = useState(false);
   const [form, setForm] = useState<MetricForm>(EMPTY_METRIC_FORM);
   const [refreshing, setRefreshing] = useState(false);
+
+  const quickLog = async (updates: Partial<DailyLog>) => {
+    await saveLog(updates);
+    week.refresh();
+  };
 
   const openEdit = () => {
     setForm({
@@ -112,7 +120,7 @@ export default function DashboardScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await refresh();
+    await Promise.all([refresh(), week.refresh()]);
     setRefreshing(false);
   };
 
@@ -136,6 +144,16 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Quick Log — one-tap weight & waist */}
+        <QuickLogCard
+          weightToday={log?.weight_kg ?? null}
+          waistToday={log?.waist_cm ?? null}
+          latestWeight={week.latestWeight}
+          latestWaist={week.latestWaist}
+          onLogWeight={v => quickLog({ weight_kg: v })}
+          onLogWaist={v => quickLog({ waist_cm: v })}
+        />
+
         {/* Score Card */}
         <View style={styles.scoreCard}>
           <View style={styles.scoreLeft}>
@@ -154,6 +172,15 @@ export default function DashboardScreen() {
             </View>
           </View>
         </View>
+
+        {/* Weekly progress summary */}
+        <WeeklySummaryCard
+          weightDelta={week.weightDelta}
+          waistDelta={week.waistDelta}
+          avgHabitPct={week.avgHabitPct}
+          daysLogged={week.daysLogged}
+          loading={week.loading}
+        />
 
         {/* Metrics Grid */}
         <View style={styles.metricsHeader}>
