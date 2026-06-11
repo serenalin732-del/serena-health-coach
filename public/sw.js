@@ -2,7 +2,7 @@
 // Served at /sw.js (files in public/ are copied to the web build root).
 
 self.addEventListener('push', (event) => {
-  let payload = { title: 'Serena Health Coach', body: "Time for today's check-in." };
+  let payload = { title: 'Health Coach', body: "Time for today's check-in." };
   try {
     if (event.data) payload = { ...payload, ...event.data.json() };
   } catch (e) {

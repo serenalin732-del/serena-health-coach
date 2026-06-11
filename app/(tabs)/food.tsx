@@ -17,6 +17,7 @@ import { useMeals } from '@/hooks/useMeals';
 import { useMealAnalysis, type MealEstimate } from '@/hooks/useMealAnalysis';
 import { pickMealImage } from '@/lib/imagePicker';
 import { useAuth } from '@/hooks/useAuth';
+import { useI18n } from '@/lib/i18n';
 import { todayStr, shiftDate, formatDisplayDate, sanitizeDecimalInput, parseNumericInput } from '@/lib/utils';
 import type { MealLog } from '@/lib/types';
 
@@ -31,6 +32,7 @@ const MEAL_CONFIG: Record<MealType, { label: string; icon: React.ReactNode; colo
 
 export default function FoodScreen() {
   const { user } = useAuth();
+  const { t } = useI18n();
   const userId = user?.id ?? '';
   // The day being viewed/edited; ◀ ▶ moves between days to fix past meals.
   const [viewDate, setViewDate] = useState(todayStr());
@@ -118,7 +120,7 @@ export default function FoodScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.rosePrimary} />}
       >
         <View style={styles.header}>
-          <Text style={styles.pageTitle}>Nutrition</Text>
+          <Text style={styles.pageTitle}>{t('Nutrition')}</Text>
           <View style={styles.dateNav}>
             <TouchableOpacity
               onPress={() => setViewDate(d => shiftDate(d, -1))}
@@ -127,7 +129,7 @@ export default function FoodScreen() {
             >
               <ChevronLeft size={18} color={COLORS.charcoalMed} />
             </TouchableOpacity>
-            <Text style={styles.pageDate}>{isToday ? 'Today' : formatDisplayDate(viewDate)}</Text>
+            <Text style={styles.pageDate}>{isToday ? t('Today') : formatDisplayDate(viewDate)}</Text>
             <TouchableOpacity
               onPress={() => setViewDate(d => shiftDate(d, 1))}
               style={styles.dateNavBtn}
@@ -141,18 +143,18 @@ export default function FoodScreen() {
 
         {/* Totals Banner */}
         <View style={styles.totalsBanner}>
-          <MacroChip label="Calories" value={Math.round(totals.calories)} unit="kcal" color={COLORS.rosePrimary} />
-          <MacroChip label="Protein" value={Math.round(totals.protein)} unit="g" color={COLORS.sageDark} />
-          <MacroChip label="Carbs" value={Math.round(totals.carbs)} unit="g" color={COLORS.warning} />
-          <MacroChip label="Fat" value={Math.round(totals.fat)} unit="g" color={COLORS.roseAccent} />
+          <MacroChip label={t('Calories')} value={Math.round(totals.calories)} unit="kcal" color={COLORS.rosePrimary} />
+          <MacroChip label={t('Protein')} value={Math.round(totals.protein)} unit="g" color={COLORS.sageDark} />
+          <MacroChip label={t('Carbs')} value={Math.round(totals.carbs)} unit="g" color={COLORS.warning} />
+          <MacroChip label={t('Fat')} value={Math.round(totals.fat)} unit="g" color={COLORS.roseAccent} />
         </View>
 
         {/* AI Meal Analysis entry point */}
         <TouchableOpacity style={styles.aiCard} activeOpacity={0.8} onPress={() => openAdd('snack')}>
           <Sparkles size={18} color={COLORS.rosePrimary} />
           <View style={{ flex: 1, marginLeft: SPACING.sm }}>
-            <Text style={styles.aiTitle}>AI Meal Analysis</Text>
-            <Text style={styles.aiSub}>Don't know the calories? Snap a photo or describe a meal and AI estimates it.</Text>
+            <Text style={styles.aiTitle}>{t('AI Meal Analysis')}</Text>
+            <Text style={styles.aiSub}>{t("Don't know the calories? Snap a photo or describe a meal and AI estimates it.")}</Text>
           </View>
           <ChevronRight size={18} color={COLORS.roseAccent} />
         </TouchableOpacity>
@@ -171,21 +173,21 @@ export default function FoodScreen() {
         <View style={{ height: SPACING.xxl }} />
       </ScrollView>
 
-      <ModalSheet visible={showAdd} onClose={() => setShowAdd(false)} title={`Add ${MEAL_CONFIG[mealType].label}`}>
+      <ModalSheet visible={showAdd} onClose={() => setShowAdd(false)} title={t('Add {x}', { x: t(MEAL_CONFIG[mealType].label) })}>
         {/* AI estimate */}
         <View style={styles.aiBlock}>
           <View style={styles.aiBlockHead}>
             <Sparkles size={15} color={COLORS.rosePrimary} />
-            <Text style={styles.aiBlockTitle}>Estimate with AI</Text>
+            <Text style={styles.aiBlockTitle}>{t('Estimate with AI')}</Text>
           </View>
           <InputField
-            label="Describe the food (optional)"
+            label={t('Describe the food (optional)')}
             value={aiDesc}
             onChangeText={setAiDesc}
-            placeholder="e.g. bowl of oatmeal with a banana"
+            placeholder={t('e.g. bowl of oatmeal with a banana')}
           />
           <InputField
-            label="Approx. amount (optional)"
+            label={t('Approx. amount (optional)')}
             value={aiGrams}
             onChangeText={v => setAiGrams(sanitizeDecimalInput(v))}
             keyboardType="decimal-pad"
@@ -193,25 +195,25 @@ export default function FoodScreen() {
             placeholder="e.g. 250"
           />
           <View style={styles.aiButtons}>
-            <PrimaryButton label="Estimate" onPress={estimateFromText} loading={analysis.loading} variant="secondary" style={styles.aiBtn} />
+            <PrimaryButton label={t('Estimate')} onPress={estimateFromText} loading={analysis.loading} variant="secondary" style={styles.aiBtn} />
             <TouchableOpacity onPress={estimateFromPhoto} disabled={analysis.loading} style={styles.photoBtn} activeOpacity={0.8}>
               <Camera size={16} color={COLORS.sageDark} />
-              <Text style={styles.photoBtnText}>Photo</Text>
+              <Text style={styles.photoBtnText}>{t('Photo')}</Text>
             </TouchableOpacity>
           </View>
-          {analysis.error && <Text style={styles.aiError}>{analysis.error}</Text>}
-          {aiNote ? <Text style={styles.aiNote}>{aiNote} — adjust the numbers below if needed.</Text> : null}
+          {analysis.error && <Text style={styles.aiError}>{t(analysis.error)}</Text>}
+          {aiNote ? <Text style={styles.aiNote}>{aiNote} — {t('adjust the numbers below if needed.')}</Text> : null}
         </View>
 
         <InputField
-          label="Food Name"
+          label={t('Food Name')}
           value={form.food_name}
           onChangeText={v => setForm(f => ({ ...f, food_name: v }))}
-          placeholder="e.g. Greek Yogurt"
+          placeholder={t('e.g. Greek Yogurt')}
           autoCapitalize="words"
         />
         <InputField
-          label="Calories"
+          label={t('Calories')}
           value={form.calories}
           onChangeText={v => setForm(f => ({ ...f, calories: sanitizeDecimalInput(v) }))}
           keyboardType="decimal-pad"
@@ -219,7 +221,7 @@ export default function FoodScreen() {
           placeholder="e.g. 150"
         />
         <InputField
-          label="Protein"
+          label={t('Protein')}
           value={form.protein_g}
           onChangeText={v => setForm(f => ({ ...f, protein_g: sanitizeDecimalInput(v) }))}
           keyboardType="decimal-pad"
@@ -227,7 +229,7 @@ export default function FoodScreen() {
           placeholder="e.g. 17"
         />
         <InputField
-          label="Carbohydrates"
+          label={t('Carbohydrates')}
           value={form.carbs_g}
           onChangeText={v => setForm(f => ({ ...f, carbs_g: sanitizeDecimalInput(v) }))}
           keyboardType="decimal-pad"
@@ -235,14 +237,14 @@ export default function FoodScreen() {
           placeholder="e.g. 8"
         />
         <InputField
-          label="Fat"
+          label={t('Fat')}
           value={form.fat_g}
           onChangeText={v => setForm(f => ({ ...f, fat_g: sanitizeDecimalInput(v) }))}
           keyboardType="decimal-pad"
           unit="g"
           placeholder="e.g. 4"
         />
-        <PrimaryButton label="Add Food" onPress={handleAdd} loading={saving} />
+        <PrimaryButton label={t('Add Food')} onPress={handleAdd} loading={saving} />
       </ModalSheet>
     </SafeAreaView>
   );
@@ -259,12 +261,13 @@ function MacroChip({ label, value, unit, color }: { label: string; value: number
 }
 
 function MealSection({ type, meals, onAdd, onDelete }: { type: MealType; meals: MealLog[]; onAdd: () => void; onDelete: (id: string) => void }) {
+  const { t } = useI18n();
   const config = MEAL_CONFIG[type];
   const mealTotal = meals.reduce((a, m) => a + (m.calories ?? 0), 0);
 
   return (
     <SectionCard
-      title={config.label}
+      title={t(config.label)}
       rightHeader={
         <View style={styles.mealHeaderRight}>
           {mealTotal > 0 && <Text style={styles.mealCalTotal}>{Math.round(mealTotal)} kcal</Text>}
@@ -276,7 +279,7 @@ function MealSection({ type, meals, onAdd, onDelete }: { type: MealType; meals: 
     >
       {meals.length === 0 ? (
         <TouchableOpacity onPress={onAdd} style={styles.emptyMeal}>
-          <Text style={styles.emptyMealText}>Tap + to add {config.label.toLowerCase()}</Text>
+          <Text style={styles.emptyMealText}>{t('Tap + to add {x}', { x: t(config.label) })}</Text>
         </TouchableOpacity>
       ) : (
         meals.map(meal => (

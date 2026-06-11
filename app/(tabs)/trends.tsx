@@ -12,6 +12,7 @@ import { COLORS, FONTS, SPACING, RADIUS, SHADOW } from '@/lib/theme';
 import { LineChart, BarChart } from '@/components/Charts';
 import { useTrends, TrendRange } from '@/hooks/useTrends';
 import { useAuth } from '@/hooks/useAuth';
+import { useI18n } from '@/lib/i18n';
 import { Chip } from '@/components/Inputs';
 
 const RANGES: { label: string; value: TrendRange }[] = [
@@ -23,6 +24,7 @@ const RANGES: { label: string; value: TrendRange }[] = [
 
 export default function TrendsScreen() {
   const { user } = useAuth();
+  const { t } = useI18n();
   const userId = user?.id ?? '';
   const {
     range, setRange,
@@ -35,7 +37,7 @@ export default function TrendsScreen() {
     <SafeAreaView style={styles.safe}>
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={styles.pageTitle}>Trends</Text>
+          <Text style={styles.pageTitle}>{t('Trends')}</Text>
           <View style={styles.rangeRow}>
             {RANGES.map(r => (
               <Chip key={r.value} label={r.label} selected={range === r.value} onPress={() => setRange(r.value)} />
@@ -43,27 +45,27 @@ export default function TrendsScreen() {
           </View>
         </View>
 
-        <ChartSection title="Weight" color={COLORS.rosePrimary} gradientId="weight">
+        <ChartSection title={t('Weight')} color={COLORS.rosePrimary} gradientId="weight">
           <LineChart data={weightData} color={COLORS.rosePrimary} unit="kg" loading={loading} gradientId="weight" />
         </ChartSection>
 
-        <ChartSection title="Waist Circumference" color={COLORS.roseAccent} gradientId="waist">
+        <ChartSection title={t('Waist Circumference')} color={COLORS.roseAccent} gradientId="waist">
           <LineChart data={waistData} color={COLORS.roseAccent} unit="cm" loading={loading} gradientId="waist" />
         </ChartSection>
 
-        <ChartSection title="Body Fat %" color={COLORS.warning} gradientId="bodyfat">
+        <ChartSection title={t('Body Fat %')} color={COLORS.warning} gradientId="bodyfat">
           <LineChart data={bodyFatData} color={COLORS.warning} unit="%" loading={loading} gradientId="bodyfat" />
         </ChartSection>
 
-        <ChartSection title="Protein Intake" color={COLORS.sageDark} gradientId="protein">
+        <ChartSection title={t('Protein Intake')} color={COLORS.sageDark} gradientId="protein">
           <LineChart data={proteinData} color={COLORS.sageDark} unit="g" loading={loading} gradientId="protein" />
         </ChartSection>
 
-        <ChartSection title="Sleep Duration" color={COLORS.sage} gradientId="sleep">
+        <ChartSection title={t('Sleep Duration')} color={COLORS.sage} gradientId="sleep">
           <LineChart data={sleepData} color={COLORS.sage} unit="hrs" loading={loading} gradientId="sleep" />
         </ChartSection>
 
-        <ChartSection title="Habit Completion" color={COLORS.success} gradientId="habits">
+        <ChartSection title={t('Habit Completion')} color={COLORS.success} gradientId="habits">
           <BarChart data={habitData} color={COLORS.success} unit="%" maxValue={100} loading={loading} />
         </ChartSection>
 

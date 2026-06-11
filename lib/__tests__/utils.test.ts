@@ -7,6 +7,7 @@ import {
   formatDisplayDate,
   formatFullDate,
   calcCycleDay,
+  cycleDayOn,
   shiftDate,
   sanitizeDecimalInput,
   sanitizeIntegerInput,
@@ -136,6 +137,20 @@ describe('calcCycleDay', () => {
   it('handles starts that cross a month boundary', () => {
     // May 31 -> Jun 10 is 10 days elapsed = cycle day 11
     expect(calcCycleDay('2026-05-31')).toBe(11);
+  });
+});
+
+describe('cycleDayOn', () => {
+  it('is day 1 on the period start date', () => {
+    expect(cycleDayOn('2026-06-01', '2026-06-01')).toBe(1);
+  });
+
+  it('counts forward from the start date', () => {
+    expect(cycleDayOn('2026-06-01', '2026-06-10')).toBe(10);
+  });
+
+  it('returns null for dates before the period started', () => {
+    expect(cycleDayOn('2026-06-01', '2026-05-30')).toBeNull();
   });
 });
 
