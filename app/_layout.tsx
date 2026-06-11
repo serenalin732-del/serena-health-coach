@@ -13,6 +13,7 @@ import {
 } from '@expo-google-fonts/inter';
 import * as SplashScreen from 'expo-splash-screen';
 import { COLORS } from '@/lib/theme';
+import { registerServiceWorker } from '@/lib/push';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -45,6 +46,11 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError]);
+
+  // Register the Web Push service worker (no-op off web / unsupported).
+  useEffect(() => {
+    registerServiceWorker();
+  }, []);
 
   useEffect(() => {
     if (loading || (!fontsLoaded && !fontError)) return;

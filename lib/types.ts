@@ -104,8 +104,21 @@ export interface UserSettings {
   reminder_morning: boolean;
   reminder_lunch: boolean;
   reminder_evening: boolean;
+  push_enabled: boolean;
+  email_reminders: boolean;
+  timezone: string | null;
+  reminder_email: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface PushSubscriptionRow {
+  id: string;
+  user_id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  created_at: string;
 }
 
 export interface Database {
@@ -120,6 +133,7 @@ export interface Database {
       lab_results: { Row: LabResult; Insert: Partial<LabResult>; Update: Partial<LabResult> };
       cgm_logs: { Row: CgmLog; Insert: Partial<CgmLog>; Update: Partial<CgmLog> };
       user_settings: { Row: UserSettings; Insert: Partial<UserSettings>; Update: Partial<UserSettings> };
+      push_subscriptions: { Row: PushSubscriptionRow; Insert: Partial<PushSubscriptionRow>; Update: Partial<PushSubscriptionRow> };
     };
   };
 }

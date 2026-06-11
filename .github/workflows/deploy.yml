@@ -40,6 +40,9 @@ jobs:
         env:
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          # Optional — public VAPID key so the browser can subscribe to push.
+          # Safe to leave unset; push enrollment stays gracefully disabled.
+          EXPO_PUBLIC_VAPID_PUBLIC_KEY: ${{ secrets.EXPO_PUBLIC_VAPID_PUBLIC_KEY }}
 
       # Cloudflare Pages / wrangler silently skip any directory named
       # `node_modules`. Expo nests web assets under dist/assets/node_modules/...,
