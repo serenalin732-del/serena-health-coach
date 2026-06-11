@@ -111,6 +111,7 @@ export interface UserSettings {
   target_weight_kg: number | null;
   target_waist_cm: number | null;
   goal_focus: string | null;
+  sync_token: string | null;
   created_at: string;
   updated_at: string;
 }

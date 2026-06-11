@@ -197,6 +197,13 @@ const zh: Record<string, string> = {
   'Not signed in': '未登录',
   'Please sign in again and retry.': '请重新登录后再试。',
 
+  // Sleep sync
+  'Sleep Sync': '睡眠同步',
+  'Auto-import sleep from Garmin / Apple Health': '自动导入 Garmin / 苹果健康的睡眠',
+  'Your personal sync link (keep it private):': '你的专属同步链接(请勿外传):',
+  'Use it in an iPhone Shortcut to send last night\u2019s sleep automatically — setup steps are in the chat guide.':
+    '在 iPhone「快捷指令」里使用它,每天自动发送昨晚睡眠 — 配置步骤见聊天指南。',
+
   // Shared components
   'Done': '完成',
   'Saving...': '保存中…',
