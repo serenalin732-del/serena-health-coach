@@ -10,8 +10,9 @@ export async function pickMealImage(): Promise<string | null> {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-    // Hint mobile browsers to offer the camera.
-    input.setAttribute('capture', 'environment');
+    // No `capture` attribute: with it, iOS Safari jumps straight to the camera
+    // and never offers the photo library. Without it, tapping the button shows
+    // the native chooser (Photo Library / Take Photo / Choose File).
     input.onchange = async () => {
       const file = input.files?.[0];
       if (!file) return resolve(null);
