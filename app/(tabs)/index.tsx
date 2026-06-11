@@ -34,8 +34,10 @@ import { ProgressBar } from '@/components/UI';
 import { InputField, PrimaryButton } from '@/components/Inputs';
 import { useDailyLog } from '@/hooks/useDailyLog';
 import { useWeeklySummary } from '@/hooks/useWeeklySummary';
+import { useCoach } from '@/hooks/useCoach';
 import { useAuth } from '@/hooks/useAuth';
 import { QuickLogCard, WeeklySummaryCard } from '@/components/DailyCards';
+import { CoachCard } from '@/components/CoachCard';
 import { HABITS } from '@/lib/types';
 import {
   todayStr,
@@ -84,6 +86,7 @@ export default function DashboardScreen() {
   const today = todayStr();
   const { log, habits, loading, saving, saveLog, toggleHabit, completedCount, totalHabits, completionPct, dailyScore, refresh } = useDailyLog(userId, today);
   const week = useWeeklySummary(userId);
+  const coach = useCoach();
   const [showEdit, setShowEdit] = useState(false);
   const [form, setForm] = useState<MetricForm>(EMPTY_METRIC_FORM);
   const [refreshing, setRefreshing] = useState(false);
@@ -180,6 +183,15 @@ export default function DashboardScreen() {
           avgHabitPct={week.avgHabitPct}
           daysLogged={week.daysLogged}
           loading={week.loading}
+        />
+
+        {/* AI coaching from real logged data */}
+        <CoachCard
+          coaching={coach.coaching}
+          loading={coach.loading}
+          error={coach.error}
+          configured={coach.configured}
+          onGenerate={coach.generate}
         />
 
         {/* Metrics Grid */}
