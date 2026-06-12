@@ -32,7 +32,7 @@ export function useTrends(userId: string | undefined) {
     const days = rangeToDays[range];
     const fromDate = subtractDays(days);
 
-    const [dailyRes, sleepRes, habitRes] = await Promise.all([
+    const [dailyRes, sleepRes, habitRes, mealRes] = await Promise.all([
       supabase
         .from('daily_logs')
         .select('log_date, weight_kg, waist_cm, body_fat_pct, protein_g')
@@ -50,13 +50,30 @@ export function useTrends(userId: string | undefined) {
         .select('log_date, completed')
         .eq('user_id', userId)
         .gte('log_date', fromDate),
+      supabase
+        .from('meal_logs')
+        .select('log_date, protein_g')
+        .eq('user_id', userId)
+        .gte('log_date', fromDate),
     ]);
 
     const daily = dailyRes.data ?? [];
     setWeightData(daily.map(d => ({ date: d.log_date, value: d.weight_kg })));
     setWaistData(daily.map(d => ({ date: d.log_date, value: d.waist_cm })));
     setBodyFatData(daily.map(d => ({ date: d.log_date, value: d.body_fat_pct })));
-    setProteinData(daily.map(d => ({ date: d.log_date, value: d.protein_g })));
+
+    // Protein tracks what was actually eaten: sum each day's logged meals, and
+    // fall back to the manual daily_logs field on days with no meals.
+    const proteinByDate: Record<string, number> = {};
+    (mealRes.data ?? []).forEach((m: { log_date: string; protein_g: number | null }) => {
+      if (m.protein_g != null) proteinByDate[m.log_date] = (proteinByDate[m.log_date] ?? 0) + m.protein_g;
+    });
+    setProteinData(
+      daily.map(d => ({
+        date: d.log_date,
+        value: proteinByDate[d.log_date] != null ? Math.round(proteinByDate[d.log_date]) : d.protein_g,
+      }))
+    );
 
     const sleep = sleepRes.data ?? [];
     setSleepData(sleep.map(d => ({ date: d.log_date, value: d.hours })));
