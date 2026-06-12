@@ -2,25 +2,27 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { todayStr } from '@/lib/utils';
 import type { SleepLog, CycleLog, LabResult, CgmLog } from '@/lib/types';
+import { useVisibilityRefetch } from '@/hooks/useVisibilityRefetch';
 
 export function useSleepLog(userId: string | undefined, date: string = todayStr()) {
   const [log, setLog] = useState<SleepLog | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchLog = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
-    supabase
+    const { data } = await supabase
       .from('sleep_logs')
       .select('*')
       .eq('user_id', userId)
       .eq('log_date', date)
-      .maybeSingle()
-      .then(({ data }) => {
-        setLog(data as SleepLog | null);
-        setLoading(false);
-      });
+      .maybeSingle();
+    setLog(data as SleepLog | null);
+    setLoading(false);
   }, [userId, date]);
+
+  useEffect(() => { fetchLog(); }, [fetchLog]);
+  useVisibilityRefetch(fetchLog);
 
   const save = async (updates: Partial<SleepLog>) => {
     if (!userId) return;
@@ -54,6 +56,7 @@ export function useCycleLogs(userId: string | undefined) {
   }, [userId]);
 
   useEffect(() => { fetch(); }, [fetch]);
+  useVisibilityRefetch(fetch);
 
   const addLog = async (log: Omit<CycleLog, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
     if (!userId) return;
@@ -87,6 +90,7 @@ export function useLabResults(userId: string | undefined) {
   }, [userId]);
 
   useEffect(() => { fetch(); }, [fetch]);
+  useVisibilityRefetch(fetch);
 
   const addResult = async (result: Omit<LabResult, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
     if (!userId) return;
@@ -106,20 +110,21 @@ export function useCgmLog(userId: string | undefined, date: string = todayStr())
   const [log, setLog] = useState<CgmLog | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchLog = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
-    supabase
+    const { data } = await supabase
       .from('cgm_logs')
       .select('*')
       .eq('user_id', userId)
       .eq('log_date', date)
-      .maybeSingle()
-      .then(({ data }) => {
-        setLog(data as CgmLog | null);
-        setLoading(false);
-      });
+      .maybeSingle();
+    setLog(data as CgmLog | null);
+    setLoading(false);
   }, [userId, date]);
+
+  useEffect(() => { fetchLog(); }, [fetchLog]);
+  useVisibilityRefetch(fetchLog);
 
   const save = async (updates: Partial<CgmLog>) => {
     if (!userId) return;
