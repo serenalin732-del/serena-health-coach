@@ -9,6 +9,7 @@ export interface DashboardPrefs {
   lean_mass: boolean;
   protein: boolean;
   steps: boolean;
+  active_kcal: boolean;
   resting_hr: boolean;
   hrv: boolean;
   water: boolean;
@@ -21,6 +22,7 @@ export const DEFAULT_PREFS: DashboardPrefs = {
   lean_mass: true,
   protein: true,
   steps: true,
+  active_kcal: true,
   resting_hr: true,
   hrv: true,
   water: true,
