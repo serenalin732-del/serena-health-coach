@@ -20,6 +20,7 @@ export interface DailyLog {
   resting_hr: number | null;
   hrv_ms: number | null;
   steps: number | null;
+  active_kcal: number | null;
   water_ml: number | null;
   protein_g: number | null;
   cycle_day: number | null;

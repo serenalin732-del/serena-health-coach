@@ -45,6 +45,7 @@ const zh: Record<string, string> = {
   'Lean Mass': '瘦体重',
   'Resting HR': '静息心率',
   'HRV': '心率变异性',
+  'Active Cal': '运动消耗',
   'Protein': '蛋白质',
   'Steps': '步数',
   'Water': '饮水',

@@ -145,6 +145,7 @@ describe('useDailyLog - saveLog', () => {
       resting_hr: null,
       hrv_ms: null,
       steps: null,
+      active_kcal: null,
       water_ml: null,
       protein_g: null,
       cycle_day: null,
