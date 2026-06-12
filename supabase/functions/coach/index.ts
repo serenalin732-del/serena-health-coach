@@ -35,6 +35,19 @@ Rules:
 - If the data is sparse, encourage logging a couple of metrics today.
 - If goals are provided, anchor the coaching to them: how far from each target, whether the recent trend is moving toward it at a healthy pace, and what to adjust today.`;
 
+// The eight daily habits (must match HABITS in lib/types.ts). Used as the fixed
+// denominator for habit-completion %, since unchecked habits have no row.
+const HABIT_KEYS = [
+  'protein_90g',
+  'veggies_2',
+  'steps_8000',
+  'strength_training',
+  'sleep_7h',
+  'water_1800ml',
+  'low_carb_dinner',
+  'no_sugary_drinks',
+];
+
 type DailyRow = {
   log_date: string;
   weight_kg: number | null;
@@ -90,22 +103,27 @@ function buildSummary(
   lines.push(`Steps: ${trend(daily, 'steps')}`);
   lines.push(`Water ml: ${trend(daily, 'water_ml')}`);
 
-  // Habits
-  const byDate: Record<string, { total: number; done: number }> = {};
-  const missed: Record<string, number> = {};
+  // Habits — an unchecked habit has NO row (only toggled ones are stored), so
+  // the denominator must be the full habit list, not the number of rows, or a
+  // day where only completed habits were tapped reads as 100%.
+  const doneByDate: Record<string, Set<string>> = {};
   habits.forEach((h) => {
-    byDate[h.log_date] ??= { total: 0, done: 0 };
-    byDate[h.log_date].total++;
-    if (h.completed) byDate[h.log_date].done++;
-    else missed[h.habit_key] = (missed[h.habit_key] ?? 0) + 1;
+    doneByDate[h.log_date] ??= new Set<string>();
+    if (h.completed) doneByDate[h.log_date].add(h.habit_key);
   });
-  const dayPcts = Object.values(byDate)
-    .filter((v) => v.total > 0)
-    .map((v) => (v.done / v.total) * 100);
+  const loggedDates = Object.keys(doneByDate);
+  const dayPcts = loggedDates.map((d) => (doneByDate[d].size / HABIT_KEYS.length) * 100);
   const avgHabit = avg(dayPcts);
   lines.push(`Avg habit completion: ${avgHabit == null ? 'no data' : `${Math.round(avgHabit)}%`}`);
-  const mostMissed = Object.entries(missed).sort((a, b) => b[1] - a[1])[0];
-  if (mostMissed) lines.push(`Most-missed habit: ${mostMissed[0]} (${mostMissed[1]}x)`);
+  // Most-missed: across logged days, which habits were left undone most often.
+  const missCount: Record<string, number> = {};
+  loggedDates.forEach((d) => {
+    HABIT_KEYS.forEach((k) => { if (!doneByDate[d].has(k)) missCount[k] = (missCount[k] ?? 0) + 1; });
+  });
+  const mostMissed = Object.entries(missCount).sort((a, b) => b[1] - a[1])[0];
+  if (mostMissed && mostMissed[1] > 0) {
+    lines.push(`Most-missed habit: ${mostMissed[0]} (${mostMissed[1]} of ${loggedDates.length} logged day(s))`);
+  }
 
   // Nutrition (from meal logs)
   if (meals.length > 0) {
