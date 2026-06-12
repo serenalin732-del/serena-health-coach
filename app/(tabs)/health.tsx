@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -124,6 +124,20 @@ export default function HealthScreen() {
     setActiveModal(null);
   };
 
+  // Each saved report is its own row and may be partial (e.g. a cortisol-only
+  // re-test). Show the most recent non-null value for each marker so a partial
+  // upload tops up the picture instead of hiding the earlier full panel.
+  const mergedLab = useMemo(() => {
+    if (labResults.length === 0) return null;
+    const fields = ['cortisol', 'vitamin_d', 'progesterone', 'glucose', 'hba1c', 'cholesterol'] as const;
+    const merged: Record<string, number | string | null> = { test_date: labResults[0].test_date };
+    for (const f of fields) {
+      const row = labResults.find(r => r[f] != null);
+      merged[f] = row ? (row[f] as number) : null;
+    }
+    return merged as { test_date: string; cortisol: number | null; vitamin_d: number | null; progesterone: number | null; glucose: number | null; hba1c: number | null; cholesterol: number | null };
+  }, [labResults]);
+
   const cycleDay = latestCycle ? calcCycleDay(latestCycle.period_start) : null;
 
   const onRefresh = async () => {
@@ -220,16 +234,16 @@ export default function HealthScreen() {
               <FlaskConical size={20} color={COLORS.warning} />
             </View>
             <View style={styles.healthInfo}>
-              {labResults.length > 0 ? (
+              {mergedLab ? (
                 <>
-                  <Text style={styles.healthTitle}>{formatDisplayDate(labResults[0].test_date)}</Text>
+                  <Text style={styles.healthTitle}>{formatDisplayDate(mergedLab.test_date)}</Text>
                   <View style={styles.labGrid}>
-                    <LabValue label={t('Cortisol')} value={labResults[0].cortisol} unit="nmol/L" />
-                    <LabValue label={t('Vit D')} value={labResults[0].vitamin_d} unit="nmol/L" />
-                    <LabValue label={t('Progesterone')} value={labResults[0].progesterone} unit="ng/mL" />
-                    <LabValue label={t('Glucose')} value={labResults[0].glucose} unit="mg/dL" />
-                    <LabValue label="HbA1c" value={labResults[0].hba1c} unit="%" />
-                    <LabValue label={t('Cholesterol')} value={labResults[0].cholesterol} unit="mg/dL" />
+                    <LabValue label={t('Cortisol')} value={mergedLab.cortisol} unit="nmol/L" />
+                    <LabValue label={t('Vit D')} value={mergedLab.vitamin_d} unit="nmol/L" />
+                    <LabValue label={t('Progesterone')} value={mergedLab.progesterone} unit="ng/mL" />
+                    <LabValue label={t('Glucose')} value={mergedLab.glucose} unit="mg/dL" />
+                    <LabValue label="HbA1c" value={mergedLab.hba1c} unit="%" />
+                    <LabValue label={t('Cholesterol')} value={mergedLab.cholesterol} unit="mg/dL" />
                   </View>
                 </>
               ) : (
