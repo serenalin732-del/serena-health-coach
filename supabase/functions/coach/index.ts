@@ -58,6 +58,7 @@ type DailyRow = {
   hrv_ms: number | null;
   protein_g: number | null;
   steps: number | null;
+  active_kcal: number | null;
   water_ml: number | null;
 };
 type HabitRow = { log_date: string; habit_key: string; completed: boolean };
@@ -101,6 +102,7 @@ function buildSummary(
   lines.push(`Resting HR bpm: ${trend(daily, 'resting_hr')}`);
   lines.push(`HRV ms: ${trend(daily, 'hrv_ms')}`);
   lines.push(`Steps: ${trend(daily, 'steps')}`);
+  lines.push(`Active energy kcal/day: ${trend(daily, 'active_kcal')}`);
   lines.push(`Water ml: ${trend(daily, 'water_ml')}`);
 
   // Habits — an unchecked habit has NO row (only toggled ones are stored), so
@@ -272,7 +274,7 @@ Deno.serve(async (req: Request) => {
       await Promise.all([
         supabase
           .from('daily_logs')
-          .select('log_date, weight_kg, waist_cm, body_fat_pct, lean_mass_kg, resting_hr, hrv_ms, protein_g, steps, water_ml')
+          .select('log_date, weight_kg, waist_cm, body_fat_pct, lean_mass_kg, resting_hr, hrv_ms, protein_g, steps, active_kcal, water_ml')
           .eq('user_id', user.id)
           .gte('log_date', since14)
           .order('log_date', { ascending: true }),

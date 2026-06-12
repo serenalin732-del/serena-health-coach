@@ -65,6 +65,9 @@ Deno.serve(async (req: Request) => {
     const steps = num(params.steps);
     if (steps != null && steps >= 0) update.steps = Math.round(steps);
 
+    const activeKcal = num(params.active_kcal ?? params.active_energy ?? params.calories);
+    if (activeKcal != null && activeKcal >= 0) update.active_kcal = Math.round(activeKcal);
+
     const restingHr = num(params.resting_hr ?? params.rhr);
     if (restingHr != null && restingHr > 0) update.resting_hr = Math.round(restingHr);
 
@@ -73,7 +76,7 @@ Deno.serve(async (req: Request) => {
 
     if (Object.keys(update).length === 0) {
       return json(
-        { error: 'Provide at least one of weight, body_fat, lean_mass, steps, resting_hr, hrv' },
+        { error: 'Provide at least one of weight, body_fat, lean_mass, steps, active_kcal, resting_hr, hrv' },
         400
       );
     }

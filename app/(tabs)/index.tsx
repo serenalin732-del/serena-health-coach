@@ -305,6 +305,16 @@ export default function DashboardScreen() {
               style={styles.metricHalf}
             />
           )}
+          {prefs.active_kcal && (
+            <MetricCard
+              label={t('Active Cal')}
+              value={log?.active_kcal ? log.active_kcal.toLocaleString() : null}
+              unit="kcal"
+              icon={<FlameIcon size={16} color={COLORS.warning} />}
+              accent={COLORS.warning}
+              style={styles.metricHalf}
+            />
+          )}
           {prefs.resting_hr && (
             <MetricCard
               label={t('Resting HR')}

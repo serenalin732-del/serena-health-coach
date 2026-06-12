@@ -26,6 +26,7 @@ import {
   HeartPulse,
   Activity,
   Beef,
+  Flame,
   Percent,
   Footprints,
   Droplets,
@@ -270,6 +271,14 @@ export default function SettingsScreen() {
             value={prefs.steps}
             onToggle={() => setPref('steps', !prefs.steps)}
             color={COLORS.creamDark}
+          />
+          <ReminderRow
+            icon={<Flame size={18} color={COLORS.warning} />}
+            label={t('Active Cal')}
+            sublabel=""
+            value={prefs.active_kcal}
+            onToggle={() => setPref('active_kcal', !prefs.active_kcal)}
+            color={COLORS.warningLight}
           />
           <ReminderRow
             icon={<HeartPulse size={18} color={COLORS.rosePrimary} />}
