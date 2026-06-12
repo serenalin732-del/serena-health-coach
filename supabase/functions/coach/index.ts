@@ -303,7 +303,7 @@ Deno.serve(async (req: Request) => {
           .select('test_date, cortisol, vitamin_d, progesterone, glucose, hba1c, cholesterol')
           .eq('user_id', user.id)
           .order('test_date', { ascending: false })
-          .limit(1),
+          .limit(8),
         supabase
           .from('cgm_logs')
           .select('log_date, daily_avg_glucose, time_in_range_pct')
@@ -317,13 +317,25 @@ Deno.serve(async (req: Request) => {
         supabase.from('user_profiles').select('full_name').eq('id', user.id).maybeSingle(),
       ]);
 
+    // Reports are stored as separate (often partial) rows; merge the most recent
+    // non-null value per marker so the coach sees the full latest picture.
+    const labRows = (labRes.data ?? []) as Record<string, unknown>[];
+    let mergedLab: Record<string, unknown> | null = null;
+    if (labRows.length > 0) {
+      mergedLab = { test_date: labRows[0].test_date };
+      for (const f of ['cortisol', 'vitamin_d', 'progesterone', 'glucose', 'hba1c', 'cholesterol']) {
+        const row = labRows.find((r) => r[f] != null);
+        if (row) mergedLab[f] = row[f];
+      }
+    }
+
     const summary = buildSummary(
       (dailyRes.data ?? []) as DailyRow[],
       (habitRes.data ?? []) as HabitRow[],
       (mealRes.data ?? []) as MealRow[],
       (sleepRes.data ?? []) as SleepRow[],
       (cycleRes.data?.[0] ?? null) as { period_start: string; cycle_length_days: number } | null,
-      (labRes.data?.[0] ?? null) as Record<string, unknown> | null,
+      mergedLab,
       (cgmRes.data ?? []) as CgmRow[]
     );
 
