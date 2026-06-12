@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { todayStr } from '@/lib/utils';
 import type { DailyLog, HabitCompletion } from '@/lib/types';
 import { HABITS } from '@/lib/types';
+import { useVisibilityRefetch } from '@/hooks/useVisibilityRefetch';
 
 export function useDailyLog(userId: string | undefined, date: string = todayStr()) {
   const [log, setLog] = useState<DailyLog | null>(null);
@@ -39,6 +40,8 @@ export function useDailyLog(userId: string | undefined, date: string = todayStr(
   useEffect(() => {
     fetchLog();
   }, [fetchLog]);
+
+  useVisibilityRefetch(fetchLog);
 
   const saveLog = async (updates: Partial<DailyLog>) => {
     if (!userId) return;
