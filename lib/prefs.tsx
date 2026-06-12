@@ -6,8 +6,11 @@ import React, { createContext, useContext, useState, useCallback, type ReactNode
 export interface DashboardPrefs {
   cycle: boolean;
   body_fat: boolean;
+  lean_mass: boolean;
   protein: boolean;
   steps: boolean;
+  resting_hr: boolean;
+  hrv: boolean;
   water: boolean;
   score: boolean;
 }
@@ -15,8 +18,11 @@ export interface DashboardPrefs {
 export const DEFAULT_PREFS: DashboardPrefs = {
   cycle: true,
   body_fat: true,
+  lean_mass: true,
   protein: true,
   steps: true,
+  resting_hr: true,
+  hrv: true,
   water: true,
   score: true,
 };
