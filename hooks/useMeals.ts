@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { todayStr } from '@/lib/utils';
 import type { MealLog } from '@/lib/types';
+import { useVisibilityRefetch } from '@/hooks/useVisibilityRefetch';
 
 export function useMeals(userId: string | undefined, date: string = todayStr()) {
   const [meals, setMeals] = useState<MealLog[]>([]);
@@ -23,6 +24,8 @@ export function useMeals(userId: string | undefined, date: string = todayStr()) 
   useEffect(() => {
     fetchMeals();
   }, [fetchMeals]);
+
+  useVisibilityRefetch(fetchMeals);
 
   const addMeal = async (meal: Omit<MealLog, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
     if (!userId) return;
