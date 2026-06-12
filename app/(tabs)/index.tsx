@@ -35,6 +35,7 @@ import { ModalSheet } from '@/components/UI';
 import { ProgressBar } from '@/components/UI';
 import { InputField, PrimaryButton } from '@/components/Inputs';
 import { useDailyLog } from '@/hooks/useDailyLog';
+import { useMeals } from '@/hooks/useMeals';
 import { useWeeklySummary } from '@/hooks/useWeeklySummary';
 import { useCoach } from '@/hooks/useCoach';
 import { useCycleLogs } from '@/hooks/useHealth';
@@ -96,6 +97,12 @@ export default function DashboardScreen() {
   const [viewDate, setViewDate] = useState(todayStr());
   const isToday = viewDate === todayStr();
   const { log, habits, loading, saving, saveLog, toggleHabit, completedCount, totalHabits, completionPct, dailyScore, refresh } = useDailyLog(userId, viewDate);
+  // Protein shown on the dashboard is summed from the day's logged meals so it
+  // tracks what was actually eaten; the manual metric field is the fallback.
+  const { totals: mealTotals } = useMeals(userId, viewDate);
+  const proteinValue = mealTotals.protein > 0
+    ? Math.round(mealTotals.protein)
+    : log?.protein_g ? Math.round(log.protein_g) : null;
   const week = useWeeklySummary(userId);
   const coach = useCoach();
   const { latest: latestCycle } = useCycleLogs(userId);
@@ -269,7 +276,7 @@ export default function DashboardScreen() {
           {prefs.protein && (
             <MetricCard
               label={t('Protein')}
-              value={log?.protein_g ? Math.round(log.protein_g) : null}
+              value={proteinValue}
               unit="g"
               icon={<Dumbbell size={16} color={COLORS.sageDark} />}
               accent={COLORS.sageDark}
