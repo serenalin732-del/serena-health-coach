@@ -17,6 +17,9 @@ import {
   Moon,
   Star,
   Heart,
+  HeartPulse,
+  Activity,
+  Beef,
   Dumbbell,
   Leaf,
   Zap,
@@ -283,12 +286,42 @@ export default function DashboardScreen() {
               style={styles.metricHalf}
             />
           )}
+          {prefs.lean_mass && (
+            <MetricCard
+              label={t('Lean Mass')}
+              value={log?.lean_mass_kg ?? null}
+              unit="kg"
+              icon={<Beef size={16} color={COLORS.sageDark} />}
+              accent={COLORS.sageDark}
+              style={styles.metricHalf}
+            />
+          )}
           {prefs.steps && (
             <MetricCard
               label={t('Steps')}
               value={log?.steps ? log.steps.toLocaleString() : null}
               icon={<Footprints size={16} color={COLORS.roseBeigeDeep} />}
               accent={COLORS.roseBeigeDeep}
+              style={styles.metricHalf}
+            />
+          )}
+          {prefs.resting_hr && (
+            <MetricCard
+              label={t('Resting HR')}
+              value={log?.resting_hr ?? null}
+              unit="bpm"
+              icon={<HeartPulse size={16} color={COLORS.rosePrimary} />}
+              accent={COLORS.rosePrimary}
+              style={styles.metricHalf}
+            />
+          )}
+          {prefs.hrv && (
+            <MetricCard
+              label={t('HRV')}
+              value={log?.hrv_ms ?? null}
+              unit="ms"
+              icon={<Activity size={16} color={COLORS.roseAccent} />}
+              accent={COLORS.roseAccent}
               style={styles.metricHalf}
             />
           )}

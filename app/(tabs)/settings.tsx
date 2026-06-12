@@ -23,6 +23,9 @@ import {
   Mail,
   Target,
   Heart,
+  HeartPulse,
+  Activity,
+  Beef,
   Percent,
   Footprints,
   Droplets,
@@ -245,6 +248,14 @@ export default function SettingsScreen() {
             color={COLORS.warningLight}
           />
           <ReminderRow
+            icon={<Beef size={18} color={COLORS.sageDark} />}
+            label={t('Lean Mass')}
+            sublabel=""
+            value={prefs.lean_mass}
+            onToggle={() => setPref('lean_mass', !prefs.lean_mass)}
+            color={COLORS.sagePale}
+          />
+          <ReminderRow
             icon={<Dumbbell size={18} color={COLORS.sageDark} />}
             label={t('Protein')}
             sublabel=""
@@ -259,6 +270,22 @@ export default function SettingsScreen() {
             value={prefs.steps}
             onToggle={() => setPref('steps', !prefs.steps)}
             color={COLORS.creamDark}
+          />
+          <ReminderRow
+            icon={<HeartPulse size={18} color={COLORS.rosePrimary} />}
+            label={t('Resting HR')}
+            sublabel=""
+            value={prefs.resting_hr}
+            onToggle={() => setPref('resting_hr', !prefs.resting_hr)}
+            color={COLORS.roseBeigeLight}
+          />
+          <ReminderRow
+            icon={<Activity size={18} color={COLORS.roseAccent} />}
+            label={t('HRV')}
+            sublabel=""
+            value={prefs.hrv}
+            onToggle={() => setPref('hrv', !prefs.hrv)}
+            color={COLORS.roseBeigeLight}
           />
           <ReminderRow
             icon={<Droplets size={18} color={COLORS.sage} />}
