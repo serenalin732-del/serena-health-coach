@@ -60,6 +60,9 @@ export interface SleepLog {
   log_date: string;
   hours: number | null;
   score: number | null;
+  deep_hours: number | null;
+  rem_hours: number | null;
+  bedtime: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -115,6 +118,7 @@ export interface UserSettings {
   target_weight_kg: number | null;
   target_waist_cm: number | null;
   goal_focus: string | null;
+  health_context: string | null;
   sync_token: string | null;
   created_at: string;
   updated_at: string;

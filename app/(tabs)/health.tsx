@@ -49,7 +49,7 @@ export default function HealthScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   // Sleep form
-  const [sleepForm, setSleepForm] = useState({ hours: '', score: '', notes: '' });
+  const [sleepForm, setSleepForm] = useState({ hours: '', score: '', deep_hours: '', rem_hours: '', bedtime: '', notes: '' });
   // Cycle form
   const [cycleForm, setCycleForm] = useState({ period_start: '', cycle_length_days: '28', notes: '' });
   // Lab form
@@ -59,14 +59,14 @@ export default function HealthScreen() {
   const [cgmForm, setCgmForm] = useState({ daily_avg_glucose: '', time_in_range_pct: '', notes: '' });
 
   const openModal = (section: HealthSection) => {
-    if (section === 'sleep') setSleepForm({ hours: String(sleepLog?.hours ?? ''), score: String(sleepLog?.score ?? ''), notes: sleepLog?.notes ?? '' });
+    if (section === 'sleep') setSleepForm({ hours: String(sleepLog?.hours ?? ''), score: String(sleepLog?.score ?? ''), deep_hours: String(sleepLog?.deep_hours ?? ''), rem_hours: String(sleepLog?.rem_hours ?? ''), bedtime: sleepLog?.bedtime ?? '', notes: sleepLog?.notes ?? '' });
     if (section === 'cgm') setCgmForm({ daily_avg_glucose: String(cgmLog?.daily_avg_glucose ?? ''), time_in_range_pct: String(cgmLog?.time_in_range_pct ?? ''), notes: cgmLog?.notes ?? '' });
     setActiveModal(section);
   };
 
   const handleSaveSleep = async () => {
     setSaving(true);
-    await saveSleep({ hours: sleepForm.hours ? parseFloat(sleepForm.hours) : null, score: sleepForm.score ? parseInt(sleepForm.score) : null, notes: sleepForm.notes || null });
+    await saveSleep({ hours: sleepForm.hours ? parseFloat(sleepForm.hours) : null, score: sleepForm.score ? parseInt(sleepForm.score) : null, deep_hours: sleepForm.deep_hours ? parseFloat(sleepForm.deep_hours) : null, rem_hours: sleepForm.rem_hours ? parseFloat(sleepForm.rem_hours) : null, bedtime: sleepForm.bedtime || null, notes: sleepForm.notes || null });
     setSaving(false);
     setActiveModal(null);
   };
@@ -174,6 +174,8 @@ export default function HealthScreen() {
               <Text style={styles.healthTitle}>{t('Last Night')}</Text>
               <View style={styles.healthStats}>
                 {sleepLog?.hours != null && <Tag label={`${sleepLog.hours}h`} color={COLORS.sageDark} bg={COLORS.sagePale} />}
+                {sleepLog?.bedtime ? <Tag label={`🛏 ${sleepLog.bedtime}`} color={COLORS.sageDark} bg={COLORS.sagePale} /> : null}
+                {sleepLog?.deep_hours != null && <Tag label={t('Deep {x}h', { x: sleepLog.deep_hours })} color={COLORS.sageDark} bg={COLORS.sagePale} />}
                 {sleepLog?.score != null && <Tag label={t('Score {x}', { x: sleepLog.score })} color={COLORS.sageDark} bg={COLORS.sagePale} />}
                 {!sleepLog?.hours && !sleepLog?.score && <Text style={styles.noData}>{t('No sleep data logged')}</Text>}
               </View>
@@ -284,6 +286,9 @@ export default function HealthScreen() {
       {/* Sleep Modal */}
       <ModalSheet visible={activeModal === 'sleep'} onClose={() => setActiveModal(null)} title={t('Log Sleep')}>
         <InputField label={t('Hours Slept')} value={sleepForm.hours} onChangeText={v => setSleepForm(f => ({ ...f, hours: v }))} keyboardType="decimal-pad" unit="hrs" placeholder="e.g. 7.5" />
+        <InputField label={t('Bedtime')} value={sleepForm.bedtime} onChangeText={v => setSleepForm(f => ({ ...f, bedtime: v }))} placeholder="e.g. 22:45" />
+        <InputField label={t('Deep Sleep')} value={sleepForm.deep_hours} onChangeText={v => setSleepForm(f => ({ ...f, deep_hours: v }))} keyboardType="decimal-pad" unit="hrs" placeholder="e.g. 1.5" />
+        <InputField label={t('REM Sleep')} value={sleepForm.rem_hours} onChangeText={v => setSleepForm(f => ({ ...f, rem_hours: v }))} keyboardType="decimal-pad" unit="hrs" placeholder="e.g. 1.8" />
         <InputField label={t('Sleep Score')} value={sleepForm.score} onChangeText={v => setSleepForm(f => ({ ...f, score: v }))} keyboardType="number-pad" unit="/ 100" placeholder="e.g. 82" />
         <InputField label={t('Notes')} value={sleepForm.notes} onChangeText={v => setSleepForm(f => ({ ...f, notes: v }))} placeholder={t('How did you feel?')} multiline />
         <PrimaryButton label={t('Save Sleep')} onPress={handleSaveSleep} loading={saving} />

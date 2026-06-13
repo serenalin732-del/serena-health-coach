@@ -56,7 +56,7 @@ export default function SettingsScreen() {
   const [showGoals, setShowGoals] = useState(false);
   const [showSync, setShowSync] = useState(false);
   const [syncBusy, setSyncBusy] = useState(false);
-  const [goalsForm, setGoalsForm] = useState({ target_weight_kg: '', target_waist_cm: '', goal_focus: '' });
+  const [goalsForm, setGoalsForm] = useState({ target_weight_kg: '', target_waist_cm: '', goal_focus: '', health_context: '' });
   const [savingGoals, setSavingGoals] = useState(false);
   const reminders = useReminders(userId);
   const { t, lang, setLang } = useI18n();
@@ -137,6 +137,7 @@ export default function SettingsScreen() {
       target_weight_kg: reminders.settings.target_weight_kg != null ? String(reminders.settings.target_weight_kg) : '',
       target_waist_cm: reminders.settings.target_waist_cm != null ? String(reminders.settings.target_waist_cm) : '',
       goal_focus: reminders.settings.goal_focus ?? '',
+      health_context: reminders.settings.health_context ?? '',
     });
     setShowGoals(true);
   };
@@ -147,6 +148,7 @@ export default function SettingsScreen() {
       target_weight_kg: parseNumericInput(goalsForm.target_weight_kg),
       target_waist_cm: parseNumericInput(goalsForm.target_waist_cm),
       goal_focus: goalsForm.goal_focus.trim() || null,
+      health_context: goalsForm.health_context.trim() || null,
     });
     setSavingGoals(false);
     if (error) {
@@ -431,7 +433,14 @@ export default function SettingsScreen() {
           label={t('Focus (what matters to you)')}
           value={goalsForm.goal_focus}
           onChangeText={v => setGoalsForm(f => ({ ...f, goal_focus: v }))}
-          placeholder={t('e.g. fat loss, better sleep, keep muscle')}
+          placeholder={t('e.g. fat loss, better sleep, more focus')}
+        />
+        <InputField
+          label={t('Medications / health notes (optional)')}
+          value={goalsForm.health_context}
+          onChangeText={v => setGoalsForm(f => ({ ...f, health_context: v }))}
+          placeholder={t('e.g. taking medication X, sensitive to caffeine')}
+          multiline
         />
         <PrimaryButton label={t('Save Goals')} onPress={saveGoals} loading={savingGoals} />
       </ModalSheet>
