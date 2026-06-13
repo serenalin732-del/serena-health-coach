@@ -76,6 +76,17 @@ Deno.serve(async (req: Request) => {
     }
     hours = Math.min(24, Math.round(hours * 10) / 10);
 
+    // Optional sleep-quality extras (deep/REM hours auto-detected like total,
+    // bedtime as a free-text "HH:MM").
+    const toHrs = (v: unknown) => {
+      const n = num(v);
+      if (!Number.isFinite(n) || n <= 0) return null;
+      return Math.min(24, Math.round(toHours(n) * 10) / 10);
+    };
+    const deepHours = toHrs(params.deep ?? params.deep_hours);
+    const remHours = toHrs(params.rem ?? params.rem_hours);
+    const bedtime = typeof params.bedtime === 'string' && params.bedtime.trim() ? params.bedtime.trim().slice(0, 10) : null;
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -93,10 +104,15 @@ Deno.serve(async (req: Request) => {
         ? params.date
         : todayIn(setting.timezone || 'UTC');
 
+    const extra: Record<string, unknown> = {};
+    if (deepHours != null) extra.deep_hours = deepHours;
+    if (remHours != null) extra.rem_hours = remHours;
+    if (bedtime != null) extra.bedtime = bedtime;
+
     const { error } = await supabase
       .from('sleep_logs')
       .upsert(
-        { user_id: setting.user_id, log_date: date, hours, notes: 'Synced from device' },
+        { user_id: setting.user_id, log_date: date, hours, notes: 'Synced from device', ...extra },
         { onConflict: 'user_id,log_date' }
       );
     if (error) throw error;

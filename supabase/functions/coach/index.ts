@@ -24,24 +24,26 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const SYSTEM_PROMPT = `You are the user's personal AI health coach — warm, encouraging, and a little chatty, like a knowledgeable friend texting them. Their main goal is fat loss and body recomposition (lose fat, keep or build muscle, tone up), and they want to make visible progress soon, in a sustainable way.
+const SYSTEM_PROMPT = `You are the user's personal AI health coach — warm, encouraging, and a little chatty, like a knowledgeable friend texting them.
 
-You will receive a summary of their recent logged data — body metrics, habits, the ACTUAL foods they ate, sleep, cycle, labs, glucose, steps, and active energy burned — plus their goals.
+Their own goals are provided below; ORIENT EVERYTHING to those goals. The goal might be fat loss and toning, better sleep, more focus and energy, steadier habits, or managing a health condition. Do NOT assume weight loss unless their goals say so.
+
+You will receive a summary of their recent logged data — body metrics, habits, the ACTUAL foods they ate, sleep (including depth and bedtime when available), cycle, labs, glucose, steps, and active energy — plus their goals and any health context (medications/conditions) they shared.
 
 Write today's note as a short, friendly message (about 120-180 words) that feels like a real conversation, not a report:
 - Open with a warm, personal line (use their name if you have it) reacting to how things are going today.
-- Talk specifically about their FOOD: comment on the actual meals/foods they logged — what's helping fat loss and what to tweak (e.g. protein a bit low, a carb-heavy dinner, a simple swap for tomorrow). Be concrete and practical.
-- Connect it to fat loss & toning: protein around 90g+, a gentle calorie deficit (what they ate vs active energy burned), protecting lean mass, steps and strength work.
-- Celebrate real wins with their actual numbers/trends, gently flag what's slipping, and end with 1-2 specific things to do today.
+- Focus on the data that matters MOST for THEIR goals. If the goal involves focus/energy/mood or they take medication, look closely at sleep quality (deep/REM and how early & consistent their bedtime is) and at their food. If the goal is fat loss/toning, focus on protein, a gentle deficit (food vs active energy burned), and protecting lean mass.
+- Comment on their ACTUAL foods — what's helping and one practical swap to try.
+- If health context (e.g. medications) is given, gently factor it in (eating enough, timing, sleep) — never diagnose, never claim medical effects, never tell them to change medication.
+- Celebrate real wins with their numbers/trends, gently flag what's slipping, and end with 1-2 specific things to do today or tonight (e.g. an earlier bedtime).
 
 Style:
-- Conversational and human — natural sentences, friendly, use "you". Not bullet-point clinical, no headings, no sign-off.
-- Always ground it in real numbers and the real foods they logged; never generic.
-- Encouraging and direct, never preachy or shaming. You are not a doctor; avoid medical claims.
-- Keep it tight — one or two short paragraphs, not a wall of text.
-- Body composition matters more than scale weight: if lean mass holds or rises while body fat % falls, celebrate that even if weight is flat.
-- If the data is sparse, gently nudge them to log a couple of things today (especially meals) so you can help more.
-- Anchor to their goals: how far from each target and what to adjust today to keep moving toward it at a healthy pace.`;
+- Conversational and human — natural sentences, friendly, use "you". No headings, no sign-off, no bullet-point clinical tone.
+- Always ground it in their real numbers and real foods; never generic.
+- Encouraging and direct, never preachy or shaming. You are not a doctor.
+- Keep it tight — one or two short paragraphs.
+- For body goals, body composition matters more than scale weight (lean mass holding or rising while body fat % falls is real progress, even if weight is flat).
+- If the data is sparse, gently nudge them to log a couple of things today.`;
 
 // The eight daily habits (must match HABITS in lib/types.ts). Used as the fixed
 // denominator for habit-completion %, since unchecked habits have no row.
@@ -71,7 +73,7 @@ type DailyRow = {
 };
 type HabitRow = { log_date: string; habit_key: string; completed: boolean };
 type MealRow = { log_date: string; meal_type: string; food_name: string; calories: number | null; protein_g: number | null };
-type SleepRow = { log_date: string; hours: number | null; score: number | null };
+type SleepRow = { log_date: string; hours: number | null; score: number | null; deep_hours: number | null; rem_hours: number | null; bedtime: string | null };
 type CgmRow = { log_date: string; daily_avg_glucose: number | null; time_in_range_pct: number | null };
 
 function trend(rows: DailyRow[], key: keyof DailyRow): string {
@@ -157,10 +159,17 @@ function buildSummary(
     lines.push('Nutrition: no meals logged in the last 7 days');
   }
 
-  // Sleep
+  // Sleep — duration plus quality (deep/REM) and bedtime consistency when present
   const sleepHours = sleep.filter((s) => s.hours != null).map((s) => s.hours as number);
   if (sleepHours.length > 0) {
-    lines.push(`Sleep: avg ${avg(sleepHours)}h over ${sleepHours.length} night(s) logged (last 14d)`);
+    const deep = sleep.filter((s) => s.deep_hours != null).map((s) => s.deep_hours as number);
+    const rem = sleep.filter((s) => s.rem_hours != null).map((s) => s.rem_hours as number);
+    let line = `Sleep: avg ${avg(sleepHours)}h over ${sleepHours.length} night(s) (last 14d)`;
+    if (deep.length > 0) line += `, avg deep ${avg(deep)}h`;
+    if (rem.length > 0) line += `, avg REM ${avg(rem)}h`;
+    lines.push(line);
+    const bedtimes = sleep.filter((s) => s.bedtime).slice(-5).map((s) => `${s.log_date.slice(5)} ${s.bedtime}`);
+    if (bedtimes.length > 0) lines.push(`Recent bedtimes: ${bedtimes.join(', ')}`);
   } else {
     lines.push('Sleep: no sleep logged in the last 14 days');
   }
@@ -299,9 +308,10 @@ Deno.serve(async (req: Request) => {
           .order('log_date', { ascending: true }),
         supabase
           .from('sleep_logs')
-          .select('log_date, hours, score')
+          .select('log_date, hours, score, deep_hours, rem_hours, bedtime')
           .eq('user_id', user.id)
-          .gte('log_date', since14),
+          .gte('log_date', since14)
+          .order('log_date', { ascending: true }),
         supabase
           .from('cycle_logs')
           .select('period_start, cycle_length_days')
@@ -321,7 +331,7 @@ Deno.serve(async (req: Request) => {
           .gte('log_date', since14),
         supabase
           .from('user_settings')
-          .select('target_weight_kg, target_waist_cm, goal_focus')
+          .select('target_weight_kg, target_waist_cm, goal_focus, health_context')
           .eq('user_id', user.id)
           .maybeSingle(),
         supabase.from('user_profiles').select('full_name').eq('id', user.id).maybeSingle(),
@@ -350,20 +360,23 @@ Deno.serve(async (req: Request) => {
     );
 
     const goalRow = settingsRes.data as
-      | { target_weight_kg: number | null; target_waist_cm: number | null; goal_focus: string | null }
+      | { target_weight_kg: number | null; target_waist_cm: number | null; goal_focus: string | null; health_context: string | null }
       | null;
     const goalLines: string[] = [];
     if (goalRow?.target_weight_kg != null) goalLines.push(`Target weight: ${goalRow.target_weight_kg} kg`);
     if (goalRow?.target_waist_cm != null) goalLines.push(`Target waist: ${goalRow.target_waist_cm} cm`);
     if (goalRow?.goal_focus) goalLines.push(`Stated focus: ${goalRow.goal_focus}`);
     const goalsBlock = goalLines.length ? `\n\nMy goals:\n${goalLines.join('\n')}` : '';
+    const healthBlock = goalRow?.health_context
+      ? `\n\nHealth context (medications/conditions to keep in mind, no medical advice): ${goalRow.health_context}`
+      : '';
 
     let system = SYSTEM_PROMPT;
     const name = (profileRes.data as { full_name?: string | null } | null)?.full_name;
     if (name) system += `\n\nThe user's name is ${name}.`;
     if (lang === 'zh') system += '\n\nRespond in Simplified Chinese (简体中文).';
 
-    const userPrompt = `My recent health data:\n\n${summary}${goalsBlock}\n\nGive me today's coaching.`;
+    const userPrompt = `My recent health data:\n\n${summary}${goalsBlock}${healthBlock}\n\nGive me today's coaching.`;
     const text = openrouterKey
       ? await viaOpenRouter(openrouterKey, system, userPrompt)
       : await viaAnthropic(anthropicKey!, system, userPrompt);
