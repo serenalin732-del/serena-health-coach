@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -161,6 +161,31 @@ export default function SettingsScreen() {
   const syncUrl = reminders.settings.sync_token
     ? `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/sync-sleep?token=${reminders.settings.sync_token}`
     : null;
+
+  // Withings connection status + connect handler.
+  const [withingsConnected, setWithingsConnected] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!userId) return;
+    supabase
+      .from('withings_tokens')
+      .select('user_id')
+      .eq('user_id', userId)
+      .maybeSingle()
+      .then(({ data }) => setWithingsConnected(!!data));
+  }, [userId]);
+
+  const connectWithings = async () => {
+    const { data, error } = await supabase.functions.invoke('withings-connect');
+    if (error || data?.error) {
+      Alert.alert(t('Something went wrong'), t('Could not start Withings connection. Please try again.'));
+      return;
+    }
+    if (data?.code === 'not_configured') {
+      Alert.alert(t('Almost there'), t('Withings is not set up yet on the server.'));
+      return;
+    }
+    if (data?.url && typeof window !== 'undefined') window.open(data.url as string, '_blank');
+  };
 
   const openSync = async () => {
     setShowSync(true);
@@ -372,6 +397,12 @@ export default function SettingsScreen() {
             label={t('Sleep Sync')}
             sublabel={t('Auto-import sleep from Garmin / Apple Health')}
             onPress={openSync}
+          />
+          <SettingsRow
+            icon={<Activity size={18} color={COLORS.roseAccent} />}
+            label={t('Connect Withings scale')}
+            sublabel={withingsConnected ? t('Connected — weight & body fat sync automatically') : t('Auto-import weight, body fat, lean mass')}
+            onPress={connectWithings}
           />
           <SettingsRow icon={<Download size={18} color={COLORS.sage} />} label={t('Export Data')} sublabel={t('Download your health data')} onPress={() => {}} />
           <SettingsRow icon={<Upload size={18} color={COLORS.sage} />} label={t('Import Data')} sublabel={t('Upload from another device')} onPress={() => {}} />
