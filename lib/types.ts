@@ -49,6 +49,8 @@ export interface MealLog {
   protein_g: number | null;
   carbs_g: number | null;
   fat_g: number | null;
+  healthy_fat_g: number | null;
+  veg_servings: number | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -119,6 +121,11 @@ export interface UserSettings {
   target_waist_cm: number | null;
   goal_focus: string | null;
   health_context: string | null;
+  target_calories: number | null;
+  target_protein_g: number | null;
+  target_carbs_g: number | null;
+  target_fat_g: number | null;
+  target_veg_servings: number | null;
   sync_token: string | null;
   created_at: string;
   updated_at: string;

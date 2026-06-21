@@ -41,6 +41,8 @@ function makeMeal(partial: Partial<MealLog>): MealLog {
     protein_g: null,
     carbs_g: null,
     fat_g: null,
+    healthy_fat_g: null,
+    veg_servings: null,
     notes: null,
     created_at: '',
     updated_at: '',
@@ -89,7 +91,7 @@ describe('useMeals - totals aggregation', () => {
     });
     const { result } = renderHook(() => useMeals('u1', '2026-06-10'));
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.totals).toEqual({ calories: 300, protein: 30, carbs: 20, fat: 10 });
+    expect(result.current.totals).toEqual({ calories: 300, protein: 30, carbs: 20, fat: 10, healthyFat: 0, veg: 0 });
   });
 
   it('treats null macro values as zero', async () => {
@@ -101,14 +103,14 @@ describe('useMeals - totals aggregation', () => {
     });
     const { result } = renderHook(() => useMeals('u1', '2026-06-10'));
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.totals).toEqual({ calories: 100, protein: 20, carbs: 0, fat: 0 });
+    expect(result.current.totals).toEqual({ calories: 100, protein: 20, carbs: 0, fat: 0, healthyFat: 0, veg: 0 });
   });
 
   it('returns all-zero totals for no meals', async () => {
     mockOrder.mockResolvedValue({ data: [] });
     const { result } = renderHook(() => useMeals('u1', '2026-06-10'));
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.totals).toEqual({ calories: 0, protein: 0, carbs: 0, fat: 0 });
+    expect(result.current.totals).toEqual({ calories: 0, protein: 0, carbs: 0, fat: 0, healthyFat: 0, veg: 0 });
   });
 });
 
@@ -148,6 +150,8 @@ describe('useMeals - mutations', () => {
         protein_g: null,
         carbs_g: null,
         fat_g: null,
+        healthy_fat_g: null,
+        veg_servings: null,
         notes: null,
       });
     });
@@ -170,6 +174,8 @@ describe('useMeals - mutations', () => {
         protein_g: null,
         carbs_g: null,
         fat_g: null,
+        healthy_fat_g: null,
+        veg_servings: null,
         notes: null,
       });
       expect(res?.error).toEqual({ message: 'boom' });

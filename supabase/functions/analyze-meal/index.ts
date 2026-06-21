@@ -15,16 +15,20 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const SYSTEM = `You are a nutrition estimator. Given a short description and/or a photo of food, estimate the nutrition for the WHOLE portion described.
+const SYSTEM = `You are a precise nutrition estimator for someone tracking calories and macros for fat loss. Given a short description and/or a photo of food, estimate the nutrition for the WHOLE portion described.
 
-Identify the food, then estimate calories and macros. If an approximate gram amount is given, base the estimate on it. If only a photo is given, assume one typical serving unless the photo clearly shows more or less.
+Identify each food, estimate its weight in grams, and compute nutrition from realistic per-100g values for that food. If an approximate gram amount is given, use it as the total weight. If only a photo is given, estimate grams from typical serving sizes and what's visible. Sum all components for the whole portion.
 
 Respond with ONLY a JSON object — no prose, no code fences:
-{"food_name": string, "calories": number, "protein_g": number, "carbs_g": number, "fat_g": number, "note": string}
+{"food_name": string, "grams": number, "calories": number, "protein_g": number, "carbs_g": number, "fat_g": number, "healthy_fat_g": number, "veg_servings": number, "note": string}
 
 Rules:
-- Numbers are for the whole portion, rounded to whole numbers.
-- "note" is one short sentence stating the portion you assumed.
+- Numbers are for the WHOLE portion, rounded to whole numbers (grams may be 0).
+- "grams" is your estimated total weight of the portion.
+- "fat_g" is total fat. "healthy_fat_g" is the portion of that fat which is unsaturated / healthy (olive oil, avocado, nuts, fish, seeds); use 0 for mostly saturated/fried food.
+- "veg_servings" = servings of vegetables in the portion (1 serving ≈ 80g of non-starchy vegetables); 0 if none. Potatoes/corn/rice are NOT vegetables here.
+- Keep calories consistent with macros (~4 kcal/g protein & carbs, ~9 kcal/g fat).
+- "note" is one short sentence stating the portion/weight you assumed.
 - Always give your single best estimate, even if uncertain.`;
 
 function num(v: unknown): number | null {
@@ -117,10 +121,13 @@ Deno.serve(async (req: Request) => {
 
     return json({
       food_name: String(parsed.food_name ?? '').slice(0, 120),
+      grams: num(parsed.grams),
       calories: num(parsed.calories),
       protein_g: num(parsed.protein_g),
       carbs_g: num(parsed.carbs_g),
       fat_g: num(parsed.fat_g),
+      healthy_fat_g: num(parsed.healthy_fat_g),
+      veg_servings: num(parsed.veg_servings),
       note: String(parsed.note ?? '').slice(0, 200),
     });
   } catch (e) {
