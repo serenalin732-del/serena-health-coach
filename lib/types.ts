@@ -45,6 +45,7 @@ export interface MealLog {
   log_date: string;
   meal_type: 'breakfast' | 'lunch' | 'dinner' | 'snack';
   food_name: string;
+  grams: number | null;
   calories: number | null;
   protein_g: number | null;
   carbs_g: number | null;
