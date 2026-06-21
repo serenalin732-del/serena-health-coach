@@ -44,7 +44,10 @@ export default function FoodScreen() {
   const [mealType, setMealType] = useState<MealType>('breakfast');
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [form, setForm] = useState({ food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '', healthy_fat_g: '', veg_servings: '' });
+  const [form, setForm] = useState({ food_name: '', grams: '', calories: '', protein_g: '', carbs_g: '', fat_g: '', healthy_fat_g: '', veg_servings: '' });
+  // Per-100g nutrition for the identified food. While set, editing grams scales
+  // every macro precisely (macro = per100g × grams / 100).
+  const [per100, setPer100] = useState<null | { calories: number; protein_g: number; carbs_g: number; fat_g: number; healthy_fat_g: number; veg_servings: number }>(null);
   const [aiDesc, setAiDesc] = useState('');
   const [aiGrams, setAiGrams] = useState('');
   const [aiNote, setAiNote] = useState('');
@@ -52,7 +55,8 @@ export default function FoodScreen() {
 
   const openAdd = (type: MealType) => {
     setMealType(type);
-    setForm({ food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '', healthy_fat_g: '', veg_servings: '' });
+    setForm({ food_name: '', grams: '', calories: '', protein_g: '', carbs_g: '', fat_g: '', healthy_fat_g: '', veg_servings: '' });
+    setPer100(null);
     setAiDesc('');
     setAiGrams('');
     setAiNote('');
@@ -61,8 +65,23 @@ export default function FoodScreen() {
 
   const applyEstimate = (e: MealEstimate) => {
     const s = (n: number | null) => (n != null ? String(n) : '');
+    const g = e.grams != null && e.grams > 0 ? e.grams : null;
+    // Derive per-100g so the grams field can scale everything precisely.
+    setPer100(
+      g
+        ? {
+            calories: (e.calories ?? 0) / g * 100,
+            protein_g: (e.protein_g ?? 0) / g * 100,
+            carbs_g: (e.carbs_g ?? 0) / g * 100,
+            fat_g: (e.fat_g ?? 0) / g * 100,
+            healthy_fat_g: (e.healthy_fat_g ?? 0) / g * 100,
+            veg_servings: (e.veg_servings ?? 0) / g * 100,
+          }
+        : null
+    );
     setForm({
       food_name: e.food_name || aiDesc.trim(),
+      grams: g ? String(g) : '',
       calories: s(e.calories),
       protein_g: s(e.protein_g),
       carbs_g: s(e.carbs_g),
@@ -70,8 +89,35 @@ export default function FoodScreen() {
       healthy_fat_g: s(e.healthy_fat_g),
       veg_servings: s(e.veg_servings),
     });
-    if (e.grams != null && !aiGrams) setAiGrams(String(e.grams));
     setAiNote(e.note || '');
+  };
+
+  // Editing grams rescales macros from the per-100g basis (exact arithmetic).
+  const onGramsChange = (raw: string) => {
+    const grams = sanitizeDecimalInput(raw);
+    setForm(f => {
+      if (!per100) return { ...f, grams };
+      const g = parseFloat(grams);
+      if (!Number.isFinite(g) || g <= 0) return { ...f, grams };
+      const r = (v: number) => String(Math.round(v * g / 100));
+      const r1 = (v: number) => String(Math.round(v * g / 100 * 10) / 10);
+      return {
+        ...f,
+        grams,
+        calories: r(per100.calories),
+        protein_g: r(per100.protein_g),
+        carbs_g: r(per100.carbs_g),
+        fat_g: r(per100.fat_g),
+        healthy_fat_g: r(per100.healthy_fat_g),
+        veg_servings: r1(per100.veg_servings),
+      };
+    });
+  };
+
+  // Manually editing a macro means it's no longer a pure per-100g scale.
+  const editMacro = (key: 'calories' | 'protein_g' | 'carbs_g' | 'fat_g' | 'healthy_fat_g' | 'veg_servings', v: string) => {
+    setPer100(null);
+    setForm(f => ({ ...f, [key]: sanitizeDecimalInput(v) }));
   };
 
   const estimateFromText = async () => {
@@ -102,6 +148,7 @@ export default function FoodScreen() {
       log_date: viewDate,
       meal_type: mealType,
       food_name: form.food_name.trim(),
+      grams: parseNumericInput(form.grams),
       calories: parseNumericInput(form.calories),
       protein_g: parseNumericInput(form.protein_g),
       carbs_g: parseNumericInput(form.carbs_g),
@@ -235,9 +282,18 @@ export default function FoodScreen() {
           autoCapitalize="words"
         />
         <InputField
+          label={t('Amount')}
+          value={form.grams}
+          onChangeText={onGramsChange}
+          keyboardType="decimal-pad"
+          unit="g"
+          placeholder="e.g. 150"
+        />
+        {per100 ? <Text style={styles.aiNote}>{t('Calories & macros scale exactly with the grams above.')}</Text> : null}
+        <InputField
           label={t('Calories')}
           value={form.calories}
-          onChangeText={v => setForm(f => ({ ...f, calories: sanitizeDecimalInput(v) }))}
+          onChangeText={v => editMacro('calories', v)}
           keyboardType="decimal-pad"
           unit="kcal"
           placeholder="e.g. 150"
@@ -245,7 +301,7 @@ export default function FoodScreen() {
         <InputField
           label={t('Protein')}
           value={form.protein_g}
-          onChangeText={v => setForm(f => ({ ...f, protein_g: sanitizeDecimalInput(v) }))}
+          onChangeText={v => editMacro('protein_g', v)}
           keyboardType="decimal-pad"
           unit="g"
           placeholder="e.g. 17"
@@ -253,7 +309,7 @@ export default function FoodScreen() {
         <InputField
           label={t('Carbohydrates')}
           value={form.carbs_g}
-          onChangeText={v => setForm(f => ({ ...f, carbs_g: sanitizeDecimalInput(v) }))}
+          onChangeText={v => editMacro('carbs_g', v)}
           keyboardType="decimal-pad"
           unit="g"
           placeholder="e.g. 8"
@@ -261,7 +317,7 @@ export default function FoodScreen() {
         <InputField
           label={t('Fat')}
           value={form.fat_g}
-          onChangeText={v => setForm(f => ({ ...f, fat_g: sanitizeDecimalInput(v) }))}
+          onChangeText={v => editMacro('fat_g', v)}
           keyboardType="decimal-pad"
           unit="g"
           placeholder="e.g. 4"
@@ -269,7 +325,7 @@ export default function FoodScreen() {
         <InputField
           label={t('Good Fat')}
           value={form.healthy_fat_g}
-          onChangeText={v => setForm(f => ({ ...f, healthy_fat_g: sanitizeDecimalInput(v) }))}
+          onChangeText={v => editMacro('healthy_fat_g', v)}
           keyboardType="decimal-pad"
           unit="g"
           placeholder="e.g. 3"
@@ -277,7 +333,7 @@ export default function FoodScreen() {
         <InputField
           label={t('Vegetables')}
           value={form.veg_servings}
-          onChangeText={v => setForm(f => ({ ...f, veg_servings: sanitizeDecimalInput(v) }))}
+          onChangeText={v => editMacro('veg_servings', v)}
           keyboardType="decimal-pad"
           unit={t('servings')}
           placeholder="e.g. 1"
@@ -348,6 +404,7 @@ function MealSection({ type, meals, onAdd, onDelete }: { type: MealType; meals: 
             <View style={styles.mealInfo}>
               <Text style={styles.mealName}>{meal.food_name}</Text>
               <View style={styles.mealMacros}>
+                {meal.grams != null && <Text style={styles.mealMacro}>{Math.round(meal.grams)}g</Text>}
                 {meal.calories != null && <Text style={styles.mealMacro}>{Math.round(meal.calories)} kcal</Text>}
                 {meal.protein_g != null && <Text style={styles.mealMacro}>P {Math.round(meal.protein_g)}g</Text>}
                 {meal.carbs_g != null && <Text style={styles.mealMacro}>C {Math.round(meal.carbs_g)}g</Text>}
