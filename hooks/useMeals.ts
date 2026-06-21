@@ -50,8 +50,10 @@ export function useMeals(userId: string | undefined, date: string = todayStr()) 
       protein: acc.protein + (m.protein_g ?? 0),
       carbs: acc.carbs + (m.carbs_g ?? 0),
       fat: acc.fat + (m.fat_g ?? 0),
+      healthyFat: acc.healthyFat + (m.healthy_fat_g ?? 0),
+      veg: acc.veg + (m.veg_servings ?? 0),
     }),
-    { calories: 0, protein: 0, carbs: 0, fat: 0 }
+    { calories: 0, protein: 0, carbs: 0, fat: 0, healthyFat: 0, veg: 0 }
   );
 
   const byType = {

@@ -3,10 +3,13 @@ import { supabase } from '@/lib/supabase';
 
 export interface MealEstimate {
   food_name: string;
+  grams: number | null;
   calories: number | null;
   protein_g: number | null;
   carbs_g: number | null;
   fat_g: number | null;
+  healthy_fat_g: number | null;
+  veg_servings: number | null;
   note: string;
 }
 

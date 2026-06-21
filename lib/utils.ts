@@ -89,3 +89,26 @@ export function parseNumericInput(text: string): number | null {
   const n = Number(trimmed);
   return Number.isFinite(n) ? n : null;
 }
+
+// Suggested daily nutrition targets for fat loss while preserving muscle, from
+// body weight: ~1.8 g/kg protein, ~0.7 g/kg good fat, ~20% calorie deficit
+// (maintenance ≈ weight × 30 kcal), carbs filling the rest, plus 4 veg servings.
+export function suggestNutritionTargets(weightKg: number): {
+  target_calories: number;
+  target_protein_g: number;
+  target_carbs_g: number;
+  target_fat_g: number;
+  target_veg_servings: number;
+} {
+  const protein = Math.round(weightKg * 1.8);
+  const fat = Math.round(weightKg * 0.7);
+  const calories = Math.max(1000, Math.round((weightKg * 30 * 0.8) / 50) * 50);
+  const carbs = Math.max(20, Math.round((calories - protein * 4 - fat * 9) / 4));
+  return {
+    target_calories: calories,
+    target_protein_g: protein,
+    target_carbs_g: carbs,
+    target_fat_g: fat,
+    target_veg_servings: 4,
+  };
+}

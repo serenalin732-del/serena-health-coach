@@ -11,9 +11,10 @@ import {
 import { Plus, Trash2, Coffee, Sun, Moon, Apple, Sparkles, Camera, ChevronRight, ChevronLeft } from 'lucide-react-native';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOW } from '@/lib/theme';
 import { SectionCard } from '@/components/Cards';
-import { ModalSheet } from '@/components/UI';
+import { ModalSheet, ProgressBar } from '@/components/UI';
 import { InputField, PrimaryButton } from '@/components/Inputs';
 import { useMeals } from '@/hooks/useMeals';
+import { useNutritionTargets, type NutritionTargets } from '@/hooks/useNutritionTargets';
 import { useMealAnalysis, type MealEstimate } from '@/hooks/useMealAnalysis';
 import { pickMealImage } from '@/lib/imagePicker';
 import { useAuth } from '@/hooks/useAuth';
@@ -38,11 +39,12 @@ export default function FoodScreen() {
   const [viewDate, setViewDate] = useState(todayStr());
   const isToday = viewDate === todayStr();
   const { byType, totals, loading, addMeal, deleteMeal, refresh } = useMeals(userId, viewDate);
+  const { targets, hasTargets } = useNutritionTargets(userId);
   const [showAdd, setShowAdd] = useState(false);
   const [mealType, setMealType] = useState<MealType>('breakfast');
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [form, setForm] = useState({ food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '' });
+  const [form, setForm] = useState({ food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '', healthy_fat_g: '', veg_servings: '' });
   const [aiDesc, setAiDesc] = useState('');
   const [aiGrams, setAiGrams] = useState('');
   const [aiNote, setAiNote] = useState('');
@@ -50,7 +52,7 @@ export default function FoodScreen() {
 
   const openAdd = (type: MealType) => {
     setMealType(type);
-    setForm({ food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '' });
+    setForm({ food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '', healthy_fat_g: '', veg_servings: '' });
     setAiDesc('');
     setAiGrams('');
     setAiNote('');
@@ -58,13 +60,17 @@ export default function FoodScreen() {
   };
 
   const applyEstimate = (e: MealEstimate) => {
+    const s = (n: number | null) => (n != null ? String(n) : '');
     setForm({
       food_name: e.food_name || aiDesc.trim(),
-      calories: e.calories != null ? String(e.calories) : '',
-      protein_g: e.protein_g != null ? String(e.protein_g) : '',
-      carbs_g: e.carbs_g != null ? String(e.carbs_g) : '',
-      fat_g: e.fat_g != null ? String(e.fat_g) : '',
+      calories: s(e.calories),
+      protein_g: s(e.protein_g),
+      carbs_g: s(e.carbs_g),
+      fat_g: s(e.fat_g),
+      healthy_fat_g: s(e.healthy_fat_g),
+      veg_servings: s(e.veg_servings),
     });
+    if (e.grams != null && !aiGrams) setAiGrams(String(e.grams));
     setAiNote(e.note || '');
   };
 
@@ -100,6 +106,8 @@ export default function FoodScreen() {
       protein_g: parseNumericInput(form.protein_g),
       carbs_g: parseNumericInput(form.carbs_g),
       fat_g: parseNumericInput(form.fat_g),
+      healthy_fat_g: parseNumericInput(form.healthy_fat_g),
+      veg_servings: parseNumericInput(form.veg_servings),
       notes: null,
     });
     setSaving(false);
@@ -146,8 +154,22 @@ export default function FoodScreen() {
           <MacroChip label={t('Calories')} value={Math.round(totals.calories)} unit="kcal" color={COLORS.rosePrimary} />
           <MacroChip label={t('Protein')} value={Math.round(totals.protein)} unit="g" color={COLORS.sageDark} />
           <MacroChip label={t('Carbs')} value={Math.round(totals.carbs)} unit="g" color={COLORS.warning} />
-          <MacroChip label={t('Fat')} value={Math.round(totals.fat)} unit="g" color={COLORS.roseAccent} />
+          <MacroChip label={t('Good Fat')} value={Math.round(totals.healthyFat)} unit="g" color={COLORS.roseAccent} />
         </View>
+
+        {/* Daily targets progress */}
+        {hasTargets ? (
+          <View style={styles.targetsCard}>
+            <Text style={styles.targetsTitle}>{t("Today's Target")}</Text>
+            <TargetRow label={t('Calories')} consumed={totals.calories} target={targets.target_calories} unit="kcal" color={COLORS.rosePrimary} t={t} />
+            <TargetRow label={t('Protein')} consumed={totals.protein} target={targets.target_protein_g} unit="g" color={COLORS.sageDark} t={t} />
+            <TargetRow label={t('Carbs')} consumed={totals.carbs} target={targets.target_carbs_g} unit="g" color={COLORS.warning} t={t} />
+            <TargetRow label={t('Good Fat')} consumed={totals.healthyFat} target={targets.target_fat_g} unit="g" color={COLORS.roseAccent} t={t} />
+            <TargetRow label={t('Vegetables')} consumed={totals.veg} target={targets.target_veg_servings} unit={t('servings')} color={COLORS.sage} t={t} />
+          </View>
+        ) : (
+          <Text style={styles.targetsHint}>{t('Set daily targets in Settings → Nutrition Targets to track progress here.')}</Text>
+        )}
 
         {/* AI Meal Analysis entry point */}
         <TouchableOpacity style={styles.aiCard} activeOpacity={0.8} onPress={() => openAdd('snack')}>
@@ -244,9 +266,47 @@ export default function FoodScreen() {
           unit="g"
           placeholder="e.g. 4"
         />
+        <InputField
+          label={t('Good Fat')}
+          value={form.healthy_fat_g}
+          onChangeText={v => setForm(f => ({ ...f, healthy_fat_g: sanitizeDecimalInput(v) }))}
+          keyboardType="decimal-pad"
+          unit="g"
+          placeholder="e.g. 3"
+        />
+        <InputField
+          label={t('Vegetables')}
+          value={form.veg_servings}
+          onChangeText={v => setForm(f => ({ ...f, veg_servings: sanitizeDecimalInput(v) }))}
+          keyboardType="decimal-pad"
+          unit={t('servings')}
+          placeholder="e.g. 1"
+        />
         <PrimaryButton label={t('Add Food')} onPress={handleAdd} loading={saving} />
       </ModalSheet>
     </SafeAreaView>
+  );
+}
+
+function TargetRow({ label, consumed, target, unit, color, t }: { label: string; consumed: number; target: number | null; unit: string; color: string; t: (k: string, p?: Record<string, string | number>) => string }) {
+  if (!target || target <= 0) return null;
+  const done = Math.round(consumed);
+  const remaining = Math.round(target - consumed);
+  const over = remaining < 0;
+  return (
+    <View style={styles.targetRow}>
+      <View style={styles.targetTop}>
+        <Text style={styles.targetLabel}>{label}</Text>
+        <Text style={styles.targetNums}>
+          <Text style={{ color, fontFamily: FONTS.semiBold }}>{done}</Text>
+          <Text style={styles.targetMuted}> / {Math.round(target)} {unit} · </Text>
+          <Text style={{ color: over ? COLORS.error : COLORS.charcoalMed }}>
+            {over ? t('over {x}', { x: Math.abs(remaining) }) : t('{x} left', { x: remaining })}
+          </Text>
+        </Text>
+      </View>
+      <ProgressBar value={consumed} max={target} color={over ? COLORS.error : color} height={7} />
+    </View>
   );
 }
 
@@ -363,6 +423,48 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: COLORS.charcoalMuted,
     marginTop: 2,
+  },
+  targetsCard: {
+    backgroundColor: COLORS.white,
+    marginHorizontal: SPACING.md,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    ...SHADOW.card,
+  },
+  targetsTitle: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 14,
+    color: COLORS.charcoal,
+    marginBottom: SPACING.sm,
+  },
+  targetRow: {
+    marginBottom: SPACING.sm,
+  },
+  targetTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  targetLabel: {
+    fontFamily: FONTS.medium,
+    fontSize: 13,
+    color: COLORS.charcoalMed,
+  },
+  targetNums: {
+    fontFamily: FONTS.regular,
+    fontSize: 12,
+  },
+  targetMuted: {
+    color: COLORS.charcoalMuted,
+  },
+  targetsHint: {
+    fontFamily: FONTS.regular,
+    fontSize: 12,
+    color: COLORS.charcoalMuted,
+    marginHorizontal: SPACING.lg,
+    marginBottom: SPACING.md,
   },
   aiCard: {
     flexDirection: 'row',

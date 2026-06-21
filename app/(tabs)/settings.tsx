@@ -42,7 +42,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useReminders, type ReminderKey } from '@/hooks/useReminders';
 import { useI18n } from '@/lib/i18n';
 import { usePrefs } from '@/lib/prefs';
-import { sanitizeDecimalInput, parseNumericInput } from '@/lib/utils';
+import { sanitizeDecimalInput, parseNumericInput, suggestNutritionTargets } from '@/lib/utils';
 import type { UserProfile } from '@/lib/types';
 
 export default function SettingsScreen() {
@@ -58,6 +58,9 @@ export default function SettingsScreen() {
   const [syncBusy, setSyncBusy] = useState(false);
   const [goalsForm, setGoalsForm] = useState({ target_weight_kg: '', target_waist_cm: '', goal_focus: '', health_context: '' });
   const [savingGoals, setSavingGoals] = useState(false);
+  const [showTargets, setShowTargets] = useState(false);
+  const [targetsForm, setTargetsForm] = useState({ calories: '', protein: '', carbs: '', fat: '', veg: '' });
+  const [savingTargets, setSavingTargets] = useState(false);
   const reminders = useReminders(userId);
   const { t, lang, setLang } = useI18n();
   const { prefs, setPref } = usePrefs();
@@ -158,6 +161,65 @@ export default function SettingsScreen() {
     setShowGoals(false);
   };
 
+  const openTargets = () => {
+    const s = reminders.settings;
+    const str = (v: number | null | undefined) => (v != null ? String(v) : '');
+    setTargetsForm({
+      calories: str(s.target_calories),
+      protein: str(s.target_protein_g),
+      carbs: str(s.target_carbs_g),
+      fat: str(s.target_fat_g),
+      veg: str(s.target_veg_servings),
+    });
+    setShowTargets(true);
+  };
+
+  const suggestTargets = async () => {
+    if (!userId) return;
+    const { data } = await supabase
+      .from('daily_logs')
+      .select('weight_kg')
+      .eq('user_id', userId)
+      .not('weight_kg', 'is', null)
+      .order('log_date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const weight = (data as { weight_kg: number | null } | null)?.weight_kg;
+    if (!weight) {
+      Alert.alert(t('No weight yet'), t('Log your weight first so targets can be based on it.'));
+      return;
+    }
+    const s = suggestNutritionTargets(weight);
+    setTargetsForm({
+      calories: String(s.target_calories),
+      protein: String(s.target_protein_g),
+      carbs: String(s.target_carbs_g),
+      fat: String(s.target_fat_g),
+      veg: String(s.target_veg_servings),
+    });
+  };
+
+  const saveTargets = async () => {
+    setSavingTargets(true);
+    const error = await reminders.save({
+      target_calories: parseNumericInput(targetsForm.calories),
+      target_protein_g: parseNumericInput(targetsForm.protein),
+      target_carbs_g: parseNumericInput(targetsForm.carbs),
+      target_fat_g: parseNumericInput(targetsForm.fat),
+      target_veg_servings: parseNumericInput(targetsForm.veg),
+    });
+    setSavingTargets(false);
+    if (error) {
+      Alert.alert(t('Something went wrong'), error.message);
+      return;
+    }
+    setShowTargets(false);
+  };
+
+  const targetsSummary = reminders.settings.target_calories != null
+    ? t('{x} kcal/day target', { x: reminders.settings.target_calories })
+    : t('Set calories, protein, carbs & good fat');
+
   const syncUrl = reminders.settings.sync_token
     ? `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/sync-sleep?token=${reminders.settings.sync_token}`
     : null;
@@ -245,6 +307,12 @@ export default function SettingsScreen() {
             label={t('My Goals')}
             sublabel={goalSummary}
             onPress={openGoals}
+          />
+          <SettingsRow
+            icon={<Flame size={18} color={COLORS.warning} />}
+            label={t('Nutrition Targets')}
+            sublabel={targetsSummary}
+            onPress={openTargets}
           />
         </SectionCard>
 
@@ -474,6 +542,18 @@ export default function SettingsScreen() {
           multiline
         />
         <PrimaryButton label={t('Save Goals')} onPress={saveGoals} loading={savingGoals} />
+      </ModalSheet>
+
+      <ModalSheet visible={showTargets} onClose={() => setShowTargets(false)} title={t('Nutrition Targets')}>
+        <Text style={styles.sectionHint}>{t('Your daily plan to lose fat. Tap “Suggest from my weight”, then adjust.')}</Text>
+        <PrimaryButton label={t('Suggest from my weight')} onPress={suggestTargets} variant="secondary" />
+        <View style={{ height: SPACING.sm }} />
+        <InputField label={t('Calories')} value={targetsForm.calories} onChangeText={v => setTargetsForm(f => ({ ...f, calories: sanitizeDecimalInput(v) }))} keyboardType="decimal-pad" unit="kcal" placeholder="e.g. 1400" />
+        <InputField label={t('Protein')} value={targetsForm.protein} onChangeText={v => setTargetsForm(f => ({ ...f, protein: sanitizeDecimalInput(v) }))} keyboardType="decimal-pad" unit="g" placeholder="e.g. 105" />
+        <InputField label={t('Carbs')} value={targetsForm.carbs} onChangeText={v => setTargetsForm(f => ({ ...f, carbs: sanitizeDecimalInput(v) }))} keyboardType="decimal-pad" unit="g" placeholder="e.g. 120" />
+        <InputField label={t('Good Fat')} value={targetsForm.fat} onChangeText={v => setTargetsForm(f => ({ ...f, fat: sanitizeDecimalInput(v) }))} keyboardType="decimal-pad" unit="g" placeholder="e.g. 40" />
+        <InputField label={t('Vegetables')} value={targetsForm.veg} onChangeText={v => setTargetsForm(f => ({ ...f, veg: sanitizeDecimalInput(v) }))} keyboardType="decimal-pad" unit={t('servings')} placeholder="e.g. 4" />
+        <PrimaryButton label={t('Save Targets')} onPress={saveTargets} loading={savingTargets} />
       </ModalSheet>
 
       <ModalSheet visible={showSync} onClose={() => setShowSync(false)} title={t('Sleep Sync')}>
