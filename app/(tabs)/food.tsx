@@ -16,6 +16,8 @@ import { InputField, PrimaryButton } from '@/components/Inputs';
 import { useMeals } from '@/hooks/useMeals';
 import { useNutritionTargets, type NutritionTargets } from '@/hooks/useNutritionTargets';
 import { useMealAnalysis, type MealEstimate } from '@/hooks/useMealAnalysis';
+import { useCoach } from '@/hooks/useCoach';
+import { CoachCard } from '@/components/CoachCard';
 import { pickMealImage } from '@/lib/imagePicker';
 import { useAuth } from '@/hooks/useAuth';
 import { useI18n } from '@/lib/i18n';
@@ -52,6 +54,7 @@ export default function FoodScreen() {
   const [aiGrams, setAiGrams] = useState('');
   const [aiNote, setAiNote] = useState('');
   const analysis = useMealAnalysis();
+  const foodCoach = useCoach('food-coach');
 
   const openAdd = (type: MealType) => {
     setMealType(type);
@@ -216,6 +219,21 @@ export default function FoodScreen() {
           </View>
         ) : (
           <Text style={styles.targetsHint}>{t('Set daily targets in Settings → Nutrition Targets to track progress here.')}</Text>
+        )}
+
+        {/* Nutrition coach — advice for the rest of today */}
+        {isToday && (
+          <CoachCard
+            coaching={foodCoach.coaching}
+            loading={foodCoach.loading}
+            error={foodCoach.error}
+            configured={foodCoach.configured}
+            onGenerate={foodCoach.generate}
+            title={t('Nutrition Coach')}
+            subtitle={t('Get advice on what to eat next to hit your targets today.')}
+            loadingText={t('Reading your day…')}
+            ctaLabel={t('Coach my eating')}
+          />
         )}
 
         {/* AI Meal Analysis entry point */}
