@@ -1,0 +1,178 @@
+// Supabase Edge Function: "food-coach"
+// Nutrition-focused coach for the Food page. Reads TODAY's meals and the user's
+// daily targets + goal, then gives short, practical advice for the rest of the
+// day: how to hit protein, stay under calories/carbs, get good fats and veg.
+//
+// Provider auto-selected like `coach` (OpenRouter, else Anthropic).
+//
+// Deploy:  supabase functions deploy food-coach
+// Secret:  reuses OPENROUTER_API_KEY (or ANTHROPIC_API_KEY).
+import Anthropic from 'npm:@anthropic-ai/sdk@0.68.0';
+import { createClient } from 'npm:@supabase/supabase-js@2';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
+const SYSTEM_PROMPT = `You are the user's personal nutrition coach inside the Food tab of a wellness app. You help them eat to hit their daily targets, oriented to their goal (often fat loss while keeping muscle).
+
+You receive: today's logged meals with macros, today's running totals, their daily targets and what's REMAINING, their goal, and recent foods for context.
+
+Write a short, friendly message (about 90-150 words), like a knowledgeable friend texting:
+- React to what they've eaten so far today (name actual foods).
+- Focus on what's LEFT for today vs targets: if protein is behind, suggest specific high-protein foods and rough grams; if carbs/calories are nearly used up, say what to keep light; nudge good fats and vegetables if low.
+- Give 1-3 concrete, practical next-meal or snack ideas with rough portions.
+- If they're over a target, say so kindly and how to balance the rest of the day.
+
+Rules:
+- Conversational, warm, specific, no headings or bullet-point clinical tone, no sign-off.
+- Ground every point in their real numbers and foods; never generic.
+- You are not a doctor; if health context (e.g. medication) is given, factor it in gently without medical claims.
+- If nothing is logged today yet, encourage them to log their next meal and suggest a target-friendly option.`;
+
+function todayIn(tz: string): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date());
+  } catch {
+    return new Date().toISOString().slice(0, 10);
+  }
+}
+
+async function viaOpenRouter(apiKey: string, system: string, userPrompt: string): Promise<string> {
+  const model = Deno.env.get('COACH_MODEL') ?? 'openai/gpt-4o-mini';
+  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'X-Title': 'Health Coach Food' },
+    body: JSON.stringify({ model, max_tokens: 600, messages: [{ role: 'system', content: system }, { role: 'user', content: userPrompt }] }),
+  });
+  if (!res.ok) throw new Error(`OpenRouter ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  return (data?.choices?.[0]?.message?.content ?? '').trim();
+}
+
+async function viaAnthropic(apiKey: string, system: string, userPrompt: string): Promise<string> {
+  const model = Deno.env.get('COACH_MODEL') ?? 'claude-opus-4-8';
+  const anthropic = new Anthropic({ apiKey });
+  const message = await anthropic.messages.create({ model, max_tokens: 600, system, messages: [{ role: 'user', content: userPrompt }] });
+  return message.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join('').trim();
+}
+
+Deno.serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
+  try {
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) return json({ error: 'Missing authorization' }, 401);
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return json({ error: 'Unauthorized' }, 401);
+
+    const openrouterKey = Deno.env.get('OPENROUTER_API_KEY');
+    const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
+    if (!openrouterKey && !anthropicKey) return json({ code: 'not_configured' });
+
+    const body = await req.json().catch(() => ({}));
+    const lang = (body as { lang?: string }).lang === 'zh' ? 'zh' : 'en';
+
+    const [settingsRes, profileRes] = await Promise.all([
+      supabase
+        .from('user_settings')
+        .select('timezone, goal_focus, health_context, target_calories, target_protein_g, target_carbs_g, target_fat_g, target_veg_servings')
+        .eq('user_id', user.id)
+        .maybeSingle(),
+      supabase.from('user_profiles').select('full_name').eq('id', user.id).maybeSingle(),
+    ]);
+    const settings = (settingsRes.data ?? {}) as Record<string, number | string | null>;
+    const tz = (settings.timezone as string) || 'UTC';
+    const today = todayIn(tz);
+    const since7 = new Date(Date.now() - 6 * 86_400_000).toISOString().slice(0, 10);
+
+    const [todayRes, recentRes] = await Promise.all([
+      supabase
+        .from('meal_logs')
+        .select('meal_type, food_name, grams, calories, protein_g, carbs_g, fat_g, healthy_fat_g, veg_servings')
+        .eq('user_id', user.id)
+        .eq('log_date', today)
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('meal_logs')
+        .select('food_name')
+        .eq('user_id', user.id)
+        .gte('log_date', since7)
+        .order('log_date', { ascending: false })
+        .limit(25),
+    ]);
+
+    const meals = (todayRes.data ?? []) as Array<Record<string, number | string | null>>;
+    const sum = (k: string) => meals.reduce((a, m) => a + (typeof m[k] === 'number' ? (m[k] as number) : 0), 0);
+    const totals = {
+      calories: Math.round(sum('calories')),
+      protein: Math.round(sum('protein_g')),
+      carbs: Math.round(sum('carbs_g')),
+      good_fat: Math.round(sum('healthy_fat_g')),
+      veg: Math.round(sum('veg_servings') * 10) / 10,
+    };
+
+    const lines: string[] = [];
+    if (meals.length > 0) {
+      lines.push(`Today's meals:`);
+      for (const m of meals) {
+        const macros = [
+          m.grams != null ? `${m.grams}g` : null,
+          m.calories != null ? `${m.calories}kcal` : null,
+          m.protein_g != null ? `P${m.protein_g}` : null,
+          m.carbs_g != null ? `C${m.carbs_g}` : null,
+          m.fat_g != null ? `F${m.fat_g}` : null,
+        ].filter(Boolean).join(' ');
+        lines.push(`- ${m.meal_type}: ${m.food_name} (${macros})`);
+      }
+      lines.push(`Running totals: ${totals.calories} kcal, protein ${totals.protein}g, carbs ${totals.carbs}g, good fat ${totals.good_fat}g, veg ${totals.veg} servings`);
+    } else {
+      lines.push('No meals logged yet today.');
+    }
+
+    const tgt = (k: string) => (typeof settings[k] === 'number' ? (settings[k] as number) : null);
+    const targetLines: string[] = [];
+    const remain = (label: string, consumed: number, target: number | null, unit: string) => {
+      if (target == null) return;
+      targetLines.push(`${label}: ${consumed} / ${target} ${unit} (${Math.round(target - consumed)} ${unit} left)`);
+    };
+    remain('Calories', totals.calories, tgt('target_calories'), 'kcal');
+    remain('Protein', totals.protein, tgt('target_protein_g'), 'g');
+    remain('Carbs', totals.carbs, tgt('target_carbs_g'), 'g');
+    remain('Good fat', totals.good_fat, tgt('target_fat_g'), 'g');
+    remain('Vegetables', totals.veg, tgt('target_veg_servings'), 'servings');
+    const targetsBlock = targetLines.length
+      ? `\n\nDaily targets and what's left:\n${targetLines.join('\n')}`
+      : `\n\n(No daily targets set yet — suggest setting them, and give general guidance.)`;
+
+    const recentFoods = [...new Set((recentRes.data ?? []).map((r) => (r as { food_name: string }).food_name))].slice(0, 12).join(', ');
+    const recentBlock = recentFoods ? `\n\nRecent foods (last 7d): ${recentFoods}` : '';
+    const goalBlock = settings.goal_focus ? `\n\nGoal: ${settings.goal_focus}` : '';
+    const healthBlock = settings.health_context ? `\n\nHealth context (no medical advice): ${settings.health_context}` : '';
+
+    let system = SYSTEM_PROMPT;
+    const name = (profileRes.data as { full_name?: string | null } | null)?.full_name;
+    if (name) system += `\n\nThe user's name is ${name}.`;
+    if (lang === 'zh') system += '\n\nRespond in Simplified Chinese (简体中文).';
+
+    const userPrompt = `${lines.join('\n')}${targetsBlock}${goalBlock}${healthBlock}${recentBlock}\n\nGive me practical nutrition coaching for the rest of today.`;
+    const text = openrouterKey
+      ? await viaOpenRouter(openrouterKey, system, userPrompt)
+      : await viaAnthropic(anthropicKey!, system, userPrompt);
+
+    return json({ coaching: text });
+  } catch (e) {
+    console.error('food-coach error:', e instanceof Error ? (e.stack ?? e.message) : String(e));
+    return json({ error: e instanceof Error ? e.message : String(e) }, 500);
+  }
+});

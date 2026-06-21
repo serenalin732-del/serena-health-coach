@@ -10,15 +10,19 @@ interface CoachCardProps {
   error: string | null;
   configured: boolean;
   onGenerate: () => void;
+  title?: string;
+  subtitle?: string;
+  loadingText?: string;
+  ctaLabel?: string;
 }
 
-export function CoachCard({ coaching, loading, error, configured, onGenerate }: CoachCardProps) {
+export function CoachCard({ coaching, loading, error, configured, onGenerate, title, subtitle, loadingText, ctaLabel }: CoachCardProps) {
   const { t } = useI18n();
   return (
     <View style={styles.card}>
       <View style={styles.header}>
         <Sparkles size={18} color={COLORS.rosePrimary} />
-        <Text style={styles.title}>{t('Daily Coaching')}</Text>
+        <Text style={styles.title}>{title ?? t('Daily Coaching')}</Text>
         {coaching && !loading && (
           <TouchableOpacity onPress={onGenerate} style={styles.refresh} accessibilityLabel="Refresh coaching">
             <RefreshCw size={15} color={COLORS.charcoalMuted} />
@@ -29,7 +33,7 @@ export function CoachCard({ coaching, loading, error, configured, onGenerate }: 
       {loading ? (
         <View style={styles.row}>
           <ActivityIndicator color={COLORS.rosePrimary} />
-          <Text style={styles.muted}>{t('Reading your week…')}</Text>
+          <Text style={styles.muted}>{loadingText ?? t('Reading your week…')}</Text>
         </View>
       ) : !configured ? (
         <Text style={styles.muted}>{t('AI coaching turns on once the AI key is configured.')}</Text>
@@ -44,10 +48,10 @@ export function CoachCard({ coaching, loading, error, configured, onGenerate }: 
         <Text style={styles.body}>{coaching}</Text>
       ) : (
         <View>
-          <Text style={styles.sub}>{t("Get a quick, personal read on your week based on what you've logged.")}</Text>
+          <Text style={styles.sub}>{subtitle ?? t("Get a quick, personal read on your week based on what you've logged.")}</Text>
           <TouchableOpacity onPress={onGenerate} style={styles.btn}>
             <Sparkles size={15} color={COLORS.white} />
-            <Text style={styles.btnText}>{t('Coach me')}</Text>
+            <Text style={styles.btnText}>{ctaLabel ?? t('Coach me')}</Text>
           </TouchableOpacity>
         </View>
       )}
