@@ -34,8 +34,9 @@ Write today's note as a short, friendly message (about 120-180 words) that feels
 - Open with a warm, personal line (use their name if you have it) reacting to how things are going today.
 - Focus on the data that matters MOST for THEIR goals. If the goal involves focus/energy/mood or they take medication, look closely at sleep quality (deep/REM and how early & consistent their bedtime is) and at their food. If the goal is fat loss/toning, focus on protein, a gentle deficit (food vs active energy burned), and protecting lean mass.
 - Comment on their ACTUAL foods — what's helping and one practical swap to try.
+- CONNECT THE DOTS for fat loss: relate their eating (average calories & protein vs their targets, and what they ate) to how their WAIST, BODY FAT %, and weight are actually trending. Say plainly whether the current plan is working. If waist/body fat are falling, reassure them it's working even if scale weight is flat. If nothing has moved for a week or more, name a specific adjustment — e.g. trim ~100-150 kcal/day, add ~1500 steps, or raise protein — and mention they can update their Nutrition Targets in Settings.
 - If health context (e.g. medications) is given, gently factor it in (eating enough, timing, sleep) — never diagnose, never claim medical effects, never tell them to change medication.
-- Celebrate real wins with their numbers/trends, gently flag what's slipping, and end with 1-2 specific things to do today or tonight (e.g. an earlier bedtime).
+- Celebrate real wins with their numbers/trends, gently flag what's slipping, and end with 1-2 specific things to do today or this week.
 
 Style:
 - Conversational and human — natural sentences, friendly, use "you". No headings, no sign-off, no bullet-point clinical tone.
@@ -331,7 +332,7 @@ Deno.serve(async (req: Request) => {
           .gte('log_date', since14),
         supabase
           .from('user_settings')
-          .select('target_weight_kg, target_waist_cm, goal_focus, health_context')
+          .select('target_weight_kg, target_waist_cm, goal_focus, health_context, target_calories, target_protein_g, target_carbs_g, target_fat_g, target_veg_servings')
           .eq('user_id', user.id)
           .maybeSingle(),
         supabase.from('user_profiles').select('full_name').eq('id', user.id).maybeSingle(),
@@ -360,12 +361,30 @@ Deno.serve(async (req: Request) => {
     );
 
     const goalRow = settingsRes.data as
-      | { target_weight_kg: number | null; target_waist_cm: number | null; goal_focus: string | null; health_context: string | null }
+      | {
+          target_weight_kg: number | null;
+          target_waist_cm: number | null;
+          goal_focus: string | null;
+          health_context: string | null;
+          target_calories: number | null;
+          target_protein_g: number | null;
+          target_carbs_g: number | null;
+          target_fat_g: number | null;
+          target_veg_servings: number | null;
+        }
       | null;
     const goalLines: string[] = [];
     if (goalRow?.target_weight_kg != null) goalLines.push(`Target weight: ${goalRow.target_weight_kg} kg`);
     if (goalRow?.target_waist_cm != null) goalLines.push(`Target waist: ${goalRow.target_waist_cm} cm`);
     if (goalRow?.goal_focus) goalLines.push(`Stated focus: ${goalRow.goal_focus}`);
+    const nutritionTargets = [
+      goalRow?.target_calories != null ? `${goalRow.target_calories} kcal` : null,
+      goalRow?.target_protein_g != null ? `${goalRow.target_protein_g}g protein` : null,
+      goalRow?.target_carbs_g != null ? `${goalRow.target_carbs_g}g carbs` : null,
+      goalRow?.target_fat_g != null ? `${goalRow.target_fat_g}g good fat` : null,
+      goalRow?.target_veg_servings != null ? `${goalRow.target_veg_servings} veg servings` : null,
+    ].filter(Boolean);
+    if (nutritionTargets.length) goalLines.push(`Daily nutrition targets: ${nutritionTargets.join(', ')}`);
     const goalsBlock = goalLines.length ? `\n\nMy goals:\n${goalLines.join('\n')}` : '';
     const healthBlock = goalRow?.health_context
       ? `\n\nHealth context (medications/conditions to keep in mind, no medical advice): ${goalRow.health_context}`
