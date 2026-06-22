@@ -44,6 +44,17 @@ export function useMeals(userId: string | undefined, date: string = todayStr()) 
     return { error };
   };
 
+  const updateMeal = async (id: string, patch: Partial<MealLog>) => {
+    const { data, error } = await supabase
+      .from('meal_logs')
+      .update(patch)
+      .eq('id', id)
+      .select()
+      .single();
+    if (!error && data) setMeals(prev => prev.map(m => (m.id === id ? (data as MealLog) : m)));
+    return { error };
+  };
+
   const totals = meals.reduce(
     (acc, m) => ({
       calories: acc.calories + (m.calories ?? 0),
@@ -63,5 +74,5 @@ export function useMeals(userId: string | undefined, date: string = todayStr()) 
     snack: meals.filter(m => m.meal_type === 'snack'),
   };
 
-  return { meals, byType, totals, loading, addMeal, deleteMeal, refresh: fetchMeals };
+  return { meals, byType, totals, loading, addMeal, updateMeal, deleteMeal, refresh: fetchMeals };
 }

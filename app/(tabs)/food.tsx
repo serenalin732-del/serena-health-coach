@@ -40,10 +40,11 @@ export default function FoodScreen() {
   // The day being viewed/edited; ◀ ▶ moves between days to fix past meals.
   const [viewDate, setViewDate] = useState(todayStr());
   const isToday = viewDate === todayStr();
-  const { byType, totals, loading, addMeal, deleteMeal, refresh } = useMeals(userId, viewDate);
+  const { byType, totals, loading, addMeal, updateMeal, deleteMeal, refresh } = useMeals(userId, viewDate);
   const { targets, hasTargets } = useNutritionTargets(userId);
   const [showAdd, setShowAdd] = useState(false);
   const [mealType, setMealType] = useState<MealType>('breakfast');
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [form, setForm] = useState({ food_name: '', grams: '', calories: '', protein_g: '', carbs_g: '', fat_g: '', healthy_fat_g: '', veg_servings: '' });
@@ -58,8 +59,30 @@ export default function FoodScreen() {
 
   const openAdd = (type: MealType) => {
     setMealType(type);
+    setEditingId(null);
     setForm({ food_name: '', grams: '', calories: '', protein_g: '', carbs_g: '', fat_g: '', healthy_fat_g: '', veg_servings: '' });
     setPer100(null);
+    setAiDesc('');
+    setAiGrams('');
+    setAiNote('');
+    setShowAdd(true);
+  };
+
+  const openEdit = (meal: MealLog) => {
+    const s = (n: number | null) => (n != null ? String(n) : '');
+    setMealType(meal.meal_type);
+    setEditingId(meal.id);
+    setForm({
+      food_name: meal.food_name,
+      grams: s(meal.grams),
+      calories: s(meal.calories),
+      protein_g: s(meal.protein_g),
+      carbs_g: s(meal.carbs_g),
+      fat_g: s(meal.fat_g),
+      healthy_fat_g: s(meal.healthy_fat_g),
+      veg_servings: s(meal.veg_servings),
+    });
+    setPer100(null); // editing existing values directly, no rescale
     setAiDesc('');
     setAiGrams('');
     setAiNote('');
@@ -147,8 +170,7 @@ export default function FoodScreen() {
   const handleAdd = async () => {
     if (!form.food_name.trim()) return;
     setSaving(true);
-    await addMeal({
-      log_date: viewDate,
+    const fields = {
       meal_type: mealType,
       food_name: form.food_name.trim(),
       grams: parseNumericInput(form.grams),
@@ -158,8 +180,12 @@ export default function FoodScreen() {
       fat_g: parseNumericInput(form.fat_g),
       healthy_fat_g: parseNumericInput(form.healthy_fat_g),
       veg_servings: parseNumericInput(form.veg_servings),
-      notes: null,
-    });
+    };
+    if (editingId) {
+      await updateMeal(editingId, fields);
+    } else {
+      await addMeal({ log_date: viewDate, notes: null, ...fields });
+    }
     setSaving(false);
     setShowAdd(false);
   };
@@ -253,6 +279,7 @@ export default function FoodScreen() {
             type={type}
             meals={byType[type]}
             onAdd={() => openAdd(type)}
+            onEdit={openEdit}
             onDelete={deleteMeal}
           />
         ))}
@@ -260,7 +287,7 @@ export default function FoodScreen() {
         <View style={{ height: SPACING.xxl }} />
       </ScrollView>
 
-      <ModalSheet visible={showAdd} onClose={() => setShowAdd(false)} title={t('Add {x}', { x: t(MEAL_CONFIG[mealType].label) })}>
+      <ModalSheet visible={showAdd} onClose={() => setShowAdd(false)} title={editingId ? t('Edit Food') : t('Add {x}', { x: t(MEAL_CONFIG[mealType].label) })}>
         {/* AI estimate */}
         <View style={styles.aiBlock}>
           <View style={styles.aiBlockHead}>
@@ -356,7 +383,7 @@ export default function FoodScreen() {
           unit={t('servings')}
           placeholder="e.g. 1"
         />
-        <PrimaryButton label={t('Add Food')} onPress={handleAdd} loading={saving} />
+        <PrimaryButton label={editingId ? t('Save') : t('Add Food')} onPress={handleAdd} loading={saving} />
       </ModalSheet>
     </SafeAreaView>
   );
@@ -394,7 +421,7 @@ function MacroChip({ label, value, unit, color }: { label: string; value: number
   );
 }
 
-function MealSection({ type, meals, onAdd, onDelete }: { type: MealType; meals: MealLog[]; onAdd: () => void; onDelete: (id: string) => void }) {
+function MealSection({ type, meals, onAdd, onEdit, onDelete }: { type: MealType; meals: MealLog[]; onAdd: () => void; onEdit: (m: MealLog) => void; onDelete: (id: string) => void }) {
   const { t } = useI18n();
   const config = MEAL_CONFIG[type];
   const mealTotal = meals.reduce((a, m) => a + (m.calories ?? 0), 0);
@@ -419,7 +446,7 @@ function MealSection({ type, meals, onAdd, onDelete }: { type: MealType; meals: 
         meals.map(meal => (
           <View key={meal.id} style={styles.mealRow}>
             <View style={[styles.mealIcon, { backgroundColor: config.bg }]}>{config.icon}</View>
-            <View style={styles.mealInfo}>
+            <TouchableOpacity style={styles.mealInfo} onPress={() => onEdit(meal)} activeOpacity={0.6}>
               <Text style={styles.mealName}>{meal.food_name}</Text>
               <View style={styles.mealMacros}>
                 {meal.grams != null && <Text style={styles.mealMacro}>{Math.round(meal.grams)}g</Text>}
@@ -427,8 +454,9 @@ function MealSection({ type, meals, onAdd, onDelete }: { type: MealType; meals: 
                 {meal.protein_g != null && <Text style={styles.mealMacro}>P {Math.round(meal.protein_g)}g</Text>}
                 {meal.carbs_g != null && <Text style={styles.mealMacro}>C {Math.round(meal.carbs_g)}g</Text>}
                 {meal.fat_g != null && <Text style={styles.mealMacro}>F {Math.round(meal.fat_g)}g</Text>}
+                {meal.healthy_fat_g != null && <Text style={[styles.mealMacro, { color: COLORS.roseAccent }]}>{t('GF')} {Math.round(meal.healthy_fat_g)}g</Text>}
               </View>
-            </View>
+            </TouchableOpacity>
             <TouchableOpacity onPress={() => onDelete(meal.id)} style={styles.deleteBtn}>
               <Trash2 size={16} color={COLORS.charcoalMuted} />
             </TouchableOpacity>

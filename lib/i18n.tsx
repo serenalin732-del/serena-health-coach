@@ -94,6 +94,8 @@ const zh: Record<string, string> = {
   'Food Name': '食物名称',
   'Carbohydrates': '碳水化合物',
   'Add Food': '添加食物',
+  'Edit Food': '编辑食物',
+  'GF': '好油',
   'Amount': '份量',
   'Calories & macros scale exactly with the grams above.': '卡路里和营养会随上面的克数精确换算。',
   'Good Fat': '好油脂',
@@ -248,6 +250,7 @@ const zh: Record<string, string> = {
 
   // Shared components
   'Done': '完成',
+  'Save': '保存',
   'Saving...': '保存中…',
 };
 
