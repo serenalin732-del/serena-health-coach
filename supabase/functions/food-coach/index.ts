@@ -16,21 +16,23 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const SYSTEM_PROMPT = `You are the user's personal nutrition coach inside the Food tab of a wellness app. You help them eat to hit their daily targets, oriented to their goal (often fat loss while keeping muscle).
+const SYSTEM_PROMPT = `You are the user's personal nutrition coach inside the Food tab. You give DIRECTIVE, precise, do-this-now guidance to help them hit their daily targets — usually fat loss while keeping muscle. Be a real coach giving clear instructions, not vague encouragement.
 
-You receive: today's logged meals with macros, today's running totals, their daily targets and what's REMAINING, their goal, and recent foods for context.
+You receive: today's meals (by meal type) with macros, today's running totals, their daily targets and exactly what's REMAINING, today's water vs ~1800ml, their goal, and recent foods.
 
-Write a short, friendly message (about 90-150 words), like a knowledgeable friend texting:
-- React to what they've eaten so far today (name actual foods).
-- Focus on what's LEFT for today vs targets: if protein is behind, suggest specific high-protein foods and rough grams; if carbs/calories are nearly used up, say what to keep light; nudge good fats and vegetables if low.
-- Give 1-3 concrete, practical next-meal or snack ideas with rough portions.
-- If they're over a target, say so kindly and how to balance the rest of the day.
+Write a short, friendly but DIRECTIVE message (about 90-150 words):
+- State the key numbers: how many calories and grams of protein are LEFT for today.
+- Look meal by meal. If breakfast/lunch already used most of the calorie budget, say so and give the remaining meal a CONCRETE CEILING — e.g. "dinner ≤ 350 kcal: a palm of protein + 2 fists of veg, skip the rice."
+- If they're OVER a target (calories/carbs), say it plainly and tell them exactly how to compensate tonight (lighter dinner, more protein/veg, no extra carbs).
+- If protein is behind, name specific foods with rough grams to close the gap.
+- If WATER is under ~1800ml, tell them how much more to drink before bed.
+- Give 1-2 concrete next-meal/snack options WITH portions and rough calories.
 
 Rules:
-- Conversational, warm, specific, no headings or bullet-point clinical tone, no sign-off.
-- Ground every point in their real numbers and foods; never generic.
-- You are not a doctor; if health context (e.g. medication) is given, factor it in gently without medical claims.
-- If nothing is logged today yet, encourage them to log their next meal and suggest a target-friendly option.`;
+- Warm but direct and specific — give numbers and clear actions, not "try to". No headings, no sign-off.
+- Ground every instruction in their real numbers and foods; never generic.
+- You are not a doctor; factor in any health context gently, no medical claims.
+- If nothing is logged yet today, tell them what a target-friendly day looks like (rough calories per meal) and to log as they go.`;
 
 function todayIn(tz: string): string {
   try {
@@ -96,7 +98,7 @@ Deno.serve(async (req: Request) => {
     const today = todayIn(tz);
     const since7 = new Date(Date.now() - 6 * 86_400_000).toISOString().slice(0, 10);
 
-    const [todayRes, recentRes] = await Promise.all([
+    const [todayRes, recentRes, dailyRes] = await Promise.all([
       supabase
         .from('meal_logs')
         .select('meal_type, food_name, grams, calories, protein_g, carbs_g, fat_g, healthy_fat_g, veg_servings')
@@ -110,7 +112,14 @@ Deno.serve(async (req: Request) => {
         .gte('log_date', since7)
         .order('log_date', { ascending: false })
         .limit(25),
+      supabase
+        .from('daily_logs')
+        .select('water_ml, steps, active_kcal')
+        .eq('user_id', user.id)
+        .eq('log_date', today)
+        .maybeSingle(),
     ]);
+    const dayLog = (dailyRes.data ?? {}) as { water_ml: number | null; steps: number | null; active_kcal: number | null };
 
     const meals = (todayRes.data ?? []) as Array<Record<string, number | string | null>>;
     const sum = (k: string) => meals.reduce((a, m) => a + (typeof m[k] === 'number' ? (m[k] as number) : 0), 0);
@@ -139,6 +148,11 @@ Deno.serve(async (req: Request) => {
     } else {
       lines.push('No meals logged yet today.');
     }
+    lines.push(
+      `Water today: ${dayLog.water_ml != null ? `${dayLog.water_ml} ml` : 'not logged'} (aim ~1800 ml).` +
+        (dayLog.steps != null ? ` Steps: ${dayLog.steps}.` : '') +
+        (dayLog.active_kcal != null ? ` Active energy burned: ${dayLog.active_kcal} kcal.` : '')
+    );
 
     const tgt = (k: string) => (typeof settings[k] === 'number' ? (settings[k] as number) : null);
     const targetLines: string[] = [];
