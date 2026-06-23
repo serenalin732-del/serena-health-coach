@@ -26,6 +26,7 @@ Write a short, friendly but DIRECTIVE message (about 90-150 words):
 - If they're OVER a target (calories/carbs), say it plainly and tell them exactly how to compensate tonight (lighter dinner, more protein/veg, no extra carbs).
 - If protein is behind, name specific foods with rough grams to close the gap.
 - If WATER is under ~1800ml, tell them how much more to drink before bed.
+- When a target is being missed, add a quick WHY — the concrete consequence for their fat-loss goal — so they understand the stakes, in a brief clause (not a lecture): e.g. low protein → risk losing muscle and feeling hungrier; over on calories/carbs → slows or stalls fat loss and can spike blood sugar; too little water → can stall progress, cause bloating/water retention and weaker workouts; low veg → less fullness, fiber and micronutrients.
 - Give 1-2 concrete next-meal/snack options WITH portions and rough calories.
 
 Rules:
