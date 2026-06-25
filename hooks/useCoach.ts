@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useI18n } from '@/lib/i18n';
+import { todayStr } from '@/lib/utils';
 
 // Calls a coaching Supabase Edge Function (`coach` by default, or `food-coach`
 // for the nutrition-focused coach), which reads the user's recent data and
@@ -17,7 +18,7 @@ export function useCoach(fn: 'coach' | 'food-coach' = 'coach') {
   const generate = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const { data, error } = await supabase.functions.invoke(fn, { body: { lang } });
+    const { data, error } = await supabase.functions.invoke(fn, { body: { lang, date: todayStr() } });
     setLoading(false);
 
     if (error) {
@@ -35,5 +36,12 @@ export function useCoach(fn: 'coach' | 'food-coach' = 'coach') {
     setCoaching(data?.coaching ?? null);
   }, [lang, fn]);
 
-  return { coaching, loading, error, configured, generate };
+  // Clear stale coaching (e.g. after the day's meals change) so the card shows
+  // the "coach me" prompt again instead of out-of-date advice.
+  const reset = useCallback(() => {
+    setCoaching(null);
+    setError(null);
+  }, []);
+
+  return { coaching, loading, error, configured, generate, reset };
 }

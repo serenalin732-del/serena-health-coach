@@ -42,7 +42,15 @@ function parseJson(text: string): Record<string, unknown> {
     .replace(/^```(?:json)?/i, '')
     .replace(/```$/, '')
     .trim();
-  return JSON.parse(cleaned);
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    // Fall back to the outermost {...} in case the model added stray text.
+    const a = cleaned.indexOf('{');
+    const b = cleaned.lastIndexOf('}');
+    if (a >= 0 && b > a) return JSON.parse(cleaned.slice(a, b + 1));
+    throw new Error('Model did not return JSON');
+  }
 }
 
 Deno.serve(async (req: Request) => {
@@ -96,28 +104,47 @@ Deno.serve(async (req: Request) => {
       : userText;
 
     const model = Deno.env.get('MEAL_MODEL') ?? 'openai/gpt-4o-mini';
-    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'X-Title': 'Health Coach Meal Analysis',
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 400,
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: SYSTEM },
-          { role: 'user', content: userContent },
-        ],
-      }),
-    });
-    if (!res.ok) throw new Error(`OpenRouter ${res.status}: ${await res.text()}`);
 
-    const data = await res.json();
-    const raw = data?.choices?.[0]?.message?.content ?? '';
-    const parsed = parseJson(raw);
+    // The model/provider can flake (transient error, empty body, or a truncated
+    // response that won't parse). Retry a few times so the user doesn't have to.
+    let parsed: Record<string, unknown> | null = null;
+    let lastErr: unknown = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+            'X-Title': 'Health Coach Meal Analysis',
+          },
+          body: JSON.stringify({
+            model,
+            max_tokens: 800,
+            response_format: { type: 'json_object' },
+            messages: [
+              { role: 'system', content: SYSTEM },
+              { role: 'user', content: userContent },
+            ],
+          }),
+        });
+        if (!res.ok) {
+          lastErr = new Error(`OpenRouter ${res.status}: ${await res.text()}`);
+          continue;
+        }
+        const data = await res.json();
+        const raw = data?.choices?.[0]?.message?.content ?? '';
+        if (!raw) {
+          lastErr = new Error('Empty response from model');
+          continue;
+        }
+        parsed = parseJson(raw);
+        break;
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+    if (!parsed) throw lastErr ?? new Error('Could not analyze the meal');
 
     return json({
       food_name: String(parsed.food_name ?? '').slice(0, 120),
