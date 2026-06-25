@@ -186,8 +186,14 @@ export default function FoodScreen() {
     } else {
       await addMeal({ log_date: viewDate, notes: null, ...fields });
     }
+    foodCoach.reset(); // today's meals changed — drop stale advice
     setSaving(false);
     setShowAdd(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    await deleteMeal(id);
+    foodCoach.reset();
   };
 
   const onRefresh = async () => {
@@ -280,7 +286,7 @@ export default function FoodScreen() {
             meals={byType[type]}
             onAdd={() => openAdd(type)}
             onEdit={openEdit}
-            onDelete={deleteMeal}
+            onDelete={handleDelete}
           />
         ))}
 

@@ -26,7 +26,7 @@ describe('useCoach', () => {
     await act(async () => {
       await result.current.generate();
     });
-    expect(mockInvoke).toHaveBeenCalledWith('coach', { body: { lang: 'en' } });
+    expect(mockInvoke).toHaveBeenCalledWith('coach', { body: { lang: 'en', date: expect.any(String) } });
     expect(result.current.coaching).toBe('Nice work — protein is up.');
     expect(result.current.loading).toBe(false);
   });

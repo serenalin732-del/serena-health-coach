@@ -96,7 +96,10 @@ Deno.serve(async (req: Request) => {
     ]);
     const settings = (settingsRes.data ?? {}) as Record<string, number | string | null>;
     const tz = (settings.timezone as string) || 'UTC';
-    const today = todayIn(tz);
+    // Prefer the client's local date so the coach reads exactly the day the user
+    // is looking at (avoids any timezone mismatch with how meals are dated).
+    const reqDate = (body as { date?: string }).date;
+    const today = typeof reqDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(reqDate) ? reqDate : todayIn(tz);
     const since7 = new Date(Date.now() - 6 * 86_400_000).toISOString().slice(0, 10);
 
     const [todayRes, recentRes, dailyRes] = await Promise.all([
