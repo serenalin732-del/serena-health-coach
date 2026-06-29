@@ -127,6 +127,9 @@ export interface UserSettings {
   target_carbs_g: number | null;
   target_fat_g: number | null;
   target_veg_servings: number | null;
+  fasting_enabled: boolean;
+  eating_window_start: string | null;
+  eating_window_end: string | null;
   sync_token: string | null;
   created_at: string;
   updated_at: string;
