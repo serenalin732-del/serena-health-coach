@@ -97,6 +97,7 @@ const zh: Record<string, string> = {
   'Edit Food': '编辑食物',
   'GF': '好油',
   'Amount': '份量',
+  'Use raw weight (before cooking).': '按生重填(下锅前的重量)。',
   'Calories & macros scale exactly with the grams above.': '卡路里和营养会随上面的克数精确换算。',
   'Good Fat': '好油脂',
   'Vegetables': '蔬菜',
