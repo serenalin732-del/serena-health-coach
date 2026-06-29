@@ -23,6 +23,7 @@ import { pickMealImage } from '@/lib/imagePicker';
 import { useAuth } from '@/hooks/useAuth';
 import { useI18n } from '@/lib/i18n';
 import { todayStr, shiftDate, formatDisplayDate, sanitizeDecimalInput, parseNumericInput } from '@/lib/utils';
+import { MEAL_PRESETS, type MealPreset } from '@/lib/mealPresets';
 import type { MealLog } from '@/lib/types';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -36,7 +37,7 @@ const MEAL_CONFIG: Record<MealType, { label: string; icon: React.ReactNode; colo
 
 export default function FoodScreen() {
   const { user } = useAuth();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const userId = user?.id ?? '';
   // The day being viewed/edited; ◀ ▶ moves between days to fix past meals.
   const [viewDate, setViewDate] = useState(todayStr());
@@ -117,6 +118,34 @@ export default function FoodScreen() {
       veg_servings: s(e.veg_servings),
     });
     setAiNote(e.note || '');
+  };
+
+  // One-tap fill from a plan preset; grams (when present) still rescales live.
+  const applyPreset = (p: MealPreset) => {
+    const s = (n: number | null) => (n != null ? String(n) : '');
+    setPer100(
+      p.grams && p.grams > 0
+        ? {
+            calories: (p.calories / p.grams) * 100,
+            protein_g: (p.protein / p.grams) * 100,
+            carbs_g: (p.carbs / p.grams) * 100,
+            fat_g: (p.fat / p.grams) * 100,
+            healthy_fat_g: (p.healthy_fat / p.grams) * 100,
+            veg_servings: (p.veg / p.grams) * 100,
+          }
+        : null
+    );
+    setForm({
+      food_name: lang === 'zh' ? p.zh : p.en,
+      grams: s(p.grams),
+      calories: String(p.calories),
+      protein_g: String(p.protein),
+      carbs_g: String(p.carbs),
+      fat_g: String(p.fat),
+      healthy_fat_g: String(p.healthy_fat),
+      veg_servings: String(p.veg),
+    });
+    setAiNote('');
   };
 
   // Editing grams rescales macros from the per-100g basis (exact arithmetic).
@@ -300,6 +329,17 @@ export default function FoodScreen() {
       </ScrollView>
 
       <ModalSheet visible={showAdd} onClose={() => setShowAdd(false)} title={editingId ? t('Edit Food') : t('Add {x}', { x: t(MEAL_CONFIG[mealType].label) })}>
+        {/* Quick add from the plan */}
+        <Text style={styles.presetHead}>{t('Quick add from your plan')}</Text>
+        <View style={styles.presetWrap}>
+          {MEAL_PRESETS.map(p => (
+            <TouchableOpacity key={p.key} style={styles.presetChip} activeOpacity={0.7} onPress={() => applyPreset(p)}>
+              <Text style={styles.presetChipName}>{lang === 'zh' ? p.zh : p.en}</Text>
+              <Text style={styles.presetChipCal}>{p.calories} kcal · P{p.protein}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         {/* AI estimate */}
         <View style={styles.aiBlock}>
           <View style={styles.aiBlockHead}>
@@ -603,6 +643,35 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.charcoalMuted,
     marginTop: 2,
+  },
+  presetHead: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 13,
+    color: COLORS.charcoalMed,
+    marginBottom: SPACING.sm,
+  },
+  presetWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  presetChip: {
+    backgroundColor: COLORS.sagePale,
+    borderRadius: RADIUS.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  presetChipName: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 13,
+    color: COLORS.sageDark,
+  },
+  presetChipCal: {
+    fontFamily: FONTS.regular,
+    fontSize: 11,
+    color: COLORS.charcoalMuted,
+    marginTop: 1,
   },
   aiBlock: {
     backgroundColor: COLORS.roseBeigeLight,
