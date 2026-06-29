@@ -551,7 +551,7 @@ export default function SettingsScreen() {
         <InputField label={t('Calories')} value={targetsForm.calories} onChangeText={v => setTargetsForm(f => ({ ...f, calories: sanitizeDecimalInput(v) }))} keyboardType="decimal-pad" unit="kcal" placeholder="e.g. 1400" />
         <InputField label={t('Protein')} value={targetsForm.protein} onChangeText={v => setTargetsForm(f => ({ ...f, protein: sanitizeDecimalInput(v) }))} keyboardType="decimal-pad" unit="g" placeholder="e.g. 105" />
         <InputField label={t('Carbs')} value={targetsForm.carbs} onChangeText={v => setTargetsForm(f => ({ ...f, carbs: sanitizeDecimalInput(v) }))} keyboardType="decimal-pad" unit="g" placeholder="e.g. 120" />
-        <InputField label={t('Good Fat')} value={targetsForm.fat} onChangeText={v => setTargetsForm(f => ({ ...f, fat: sanitizeDecimalInput(v) }))} keyboardType="decimal-pad" unit="g" placeholder="e.g. 40" />
+        <InputField label={t('Fat')} value={targetsForm.fat} onChangeText={v => setTargetsForm(f => ({ ...f, fat: sanitizeDecimalInput(v) }))} keyboardType="decimal-pad" unit="g" placeholder="e.g. 45" />
         <InputField label={t('Vegetables')} value={targetsForm.veg} onChangeText={v => setTargetsForm(f => ({ ...f, veg: sanitizeDecimalInput(v) }))} keyboardType="decimal-pad" unit={t('servings')} placeholder="e.g. 4" />
         <PrimaryButton label={t('Save Targets')} onPress={saveTargets} loading={savingTargets} />
       </ModalSheet>
