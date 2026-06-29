@@ -27,6 +27,7 @@ import {
   Activity,
   Beef,
   Flame,
+  Timer,
   Percent,
   Footprints,
   Droplets,
@@ -61,6 +62,9 @@ export default function SettingsScreen() {
   const [showTargets, setShowTargets] = useState(false);
   const [targetsForm, setTargetsForm] = useState({ calories: '', protein: '', carbs: '', fat: '', veg: '' });
   const [savingTargets, setSavingTargets] = useState(false);
+  const [showFasting, setShowFasting] = useState(false);
+  const [fastingForm, setFastingForm] = useState({ enabled: false, start: '12:00', end: '20:00' });
+  const [savingFasting, setSavingFasting] = useState(false);
   const reminders = useReminders(userId);
   const { t, lang, setLang } = useI18n();
   const { prefs, setPref } = usePrefs();
@@ -216,6 +220,34 @@ export default function SettingsScreen() {
     setShowTargets(false);
   };
 
+  const openFasting = () => {
+    setFastingForm({
+      enabled: reminders.settings.fasting_enabled === true,
+      start: reminders.settings.eating_window_start ?? '12:00',
+      end: reminders.settings.eating_window_end ?? '20:00',
+    });
+    setShowFasting(true);
+  };
+
+  const saveFasting = async () => {
+    setSavingFasting(true);
+    const error = await reminders.save({
+      fasting_enabled: fastingForm.enabled,
+      eating_window_start: fastingForm.start.trim() || null,
+      eating_window_end: fastingForm.end.trim() || null,
+    });
+    setSavingFasting(false);
+    if (error) {
+      Alert.alert(t('Something went wrong'), error.message);
+      return;
+    }
+    setShowFasting(false);
+  };
+
+  const fastingSummary = reminders.settings.fasting_enabled
+    ? `${reminders.settings.eating_window_start ?? '12:00'}–${reminders.settings.eating_window_end ?? '20:00'}`
+    : t('Off');
+
   const targetsSummary = reminders.settings.target_calories != null
     ? t('{x} kcal/day target', { x: reminders.settings.target_calories })
     : t('Set calories, protein, carbs & good fat');
@@ -313,6 +345,12 @@ export default function SettingsScreen() {
             label={t('Nutrition Targets')}
             sublabel={targetsSummary}
             onPress={openTargets}
+          />
+          <SettingsRow
+            icon={<Timer size={18} color={COLORS.roseAccent} />}
+            label={t('16:8 Fasting')}
+            sublabel={fastingSummary}
+            onPress={openFasting}
           />
         </SectionCard>
 
@@ -554,6 +592,21 @@ export default function SettingsScreen() {
         <InputField label={t('Fat')} value={targetsForm.fat} onChangeText={v => setTargetsForm(f => ({ ...f, fat: sanitizeDecimalInput(v) }))} keyboardType="decimal-pad" unit="g" placeholder="e.g. 45" />
         <InputField label={t('Vegetables')} value={targetsForm.veg} onChangeText={v => setTargetsForm(f => ({ ...f, veg: sanitizeDecimalInput(v) }))} keyboardType="decimal-pad" unit={t('servings')} placeholder="e.g. 4" />
         <PrimaryButton label={t('Save Targets')} onPress={saveTargets} loading={savingTargets} />
+      </ModalSheet>
+
+      <ModalSheet visible={showFasting} onClose={() => setShowFasting(false)} title={t('16:8 Fasting')}>
+        <Text style={styles.sectionHint}>{t('Set your daily eating window — the app shows live eating/fasting status & countdown.')}</Text>
+        <ReminderRow
+          icon={<Timer size={18} color={COLORS.roseAccent} />}
+          label={t('Show fasting window')}
+          sublabel=""
+          value={fastingForm.enabled}
+          onToggle={() => setFastingForm(f => ({ ...f, enabled: !f.enabled }))}
+          color={COLORS.roseBeigeLight}
+        />
+        <InputField label={t('Eating window start')} value={fastingForm.start} onChangeText={v => setFastingForm(f => ({ ...f, start: v }))} placeholder="12:00" />
+        <InputField label={t('Eating window end')} value={fastingForm.end} onChangeText={v => setFastingForm(f => ({ ...f, end: v }))} placeholder="20:00" />
+        <PrimaryButton label={t('Save')} onPress={saveFasting} loading={savingFasting} />
       </ModalSheet>
 
       <ModalSheet visible={showSync} onClose={() => setShowSync(false)} title={t('Sleep Sync')}>

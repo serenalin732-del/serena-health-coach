@@ -18,6 +18,7 @@ import { useNutritionTargets, type NutritionTargets } from '@/hooks/useNutrition
 import { useMealAnalysis, type MealEstimate } from '@/hooks/useMealAnalysis';
 import { useCoach } from '@/hooks/useCoach';
 import { CoachCard } from '@/components/CoachCard';
+import { FastingCard } from '@/components/FastingCard';
 import { pickMealImage } from '@/lib/imagePicker';
 import { useAuth } from '@/hooks/useAuth';
 import { useI18n } from '@/lib/i18n';
@@ -41,7 +42,7 @@ export default function FoodScreen() {
   const [viewDate, setViewDate] = useState(todayStr());
   const isToday = viewDate === todayStr();
   const { byType, totals, loading, addMeal, updateMeal, deleteMeal, refresh } = useMeals(userId, viewDate);
-  const { targets, hasTargets } = useNutritionTargets(userId);
+  const { targets, hasTargets, fasting } = useNutritionTargets(userId);
   const [showAdd, setShowAdd] = useState(false);
   const [mealType, setMealType] = useState<MealType>('breakfast');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -251,6 +252,11 @@ export default function FoodScreen() {
           </View>
         ) : (
           <Text style={styles.targetsHint}>{t('Set daily targets in Settings → Nutrition Targets to track progress here.')}</Text>
+        )}
+
+        {/* 16:8 fasting window status */}
+        {isToday && fasting.enabled && fasting.start && fasting.end && (
+          <FastingCard start={fasting.start} end={fasting.end} />
         )}
 
         {/* Nutrition coach — advice for the rest of today */}
