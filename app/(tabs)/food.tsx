@@ -340,6 +340,7 @@ export default function FoodScreen() {
           unit="g"
           placeholder="e.g. 150"
         />
+        <Text style={styles.aiNote}>{t('Use raw weight (before cooking).')}</Text>
         {per100 ? <Text style={styles.aiNote}>{t('Calories & macros scale exactly with the grams above.')}</Text> : null}
         <InputField
           label={t('Calories')}
