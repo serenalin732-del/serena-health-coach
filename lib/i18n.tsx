@@ -83,6 +83,7 @@ const zh: Record<string, string> = {
   'Snack': '加餐',
   'Add {x}': '添加{x}',
   'Tap + to add {x}': '点 + 添加{x}',
+  'Quick add from your plan': '从你的食谱快速添加',
   'Estimate with AI': '用 AI 估算',
   'Describe the food (optional)': '描述食物(可选)',
   'Approx. amount (optional)': '大概份量(可选)',
