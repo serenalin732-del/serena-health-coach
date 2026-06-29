@@ -381,7 +381,7 @@ Deno.serve(async (req: Request) => {
       goalRow?.target_calories != null ? `${goalRow.target_calories} kcal` : null,
       goalRow?.target_protein_g != null ? `${goalRow.target_protein_g}g protein` : null,
       goalRow?.target_carbs_g != null ? `${goalRow.target_carbs_g}g carbs` : null,
-      goalRow?.target_fat_g != null ? `${goalRow.target_fat_g}g good fat` : null,
+      goalRow?.target_fat_g != null ? `${goalRow.target_fat_g}g fat` : null,
       goalRow?.target_veg_servings != null ? `${goalRow.target_veg_servings} veg servings` : null,
     ].filter(Boolean);
     if (nutritionTargets.length) goalLines.push(`Daily nutrition targets: ${nutritionTargets.join(', ')}`);

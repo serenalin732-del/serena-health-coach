@@ -236,7 +236,7 @@ export default function FoodScreen() {
           <MacroChip label={t('Calories')} value={Math.round(totals.calories)} unit="kcal" color={COLORS.rosePrimary} />
           <MacroChip label={t('Protein')} value={Math.round(totals.protein)} unit="g" color={COLORS.sageDark} />
           <MacroChip label={t('Carbs')} value={Math.round(totals.carbs)} unit="g" color={COLORS.warning} />
-          <MacroChip label={t('Good Fat')} value={Math.round(totals.healthyFat)} unit="g" color={COLORS.roseAccent} />
+          <MacroChip label={t('Fat')} value={Math.round(totals.fat)} unit="g" color={COLORS.roseAccent} />
         </View>
 
         {/* Daily targets progress */}
@@ -246,7 +246,7 @@ export default function FoodScreen() {
             <TargetRow label={t('Calories')} consumed={totals.calories} target={targets.target_calories} unit="kcal" color={COLORS.rosePrimary} t={t} />
             <TargetRow label={t('Protein')} consumed={totals.protein} target={targets.target_protein_g} unit="g" color={COLORS.sageDark} t={t} />
             <TargetRow label={t('Carbs')} consumed={totals.carbs} target={targets.target_carbs_g} unit="g" color={COLORS.warning} t={t} />
-            <TargetRow label={t('Good Fat')} consumed={totals.healthyFat} target={targets.target_fat_g} unit="g" color={COLORS.roseAccent} t={t} />
+            <TargetRow label={t('Fat')} consumed={totals.fat} target={targets.target_fat_g} unit="g" color={COLORS.roseAccent} t={t} />
             <TargetRow label={t('Vegetables')} consumed={totals.veg} target={targets.target_veg_servings} unit={t('servings')} color={COLORS.sage} t={t} />
           </View>
         ) : (

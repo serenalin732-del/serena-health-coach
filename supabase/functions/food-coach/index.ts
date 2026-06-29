@@ -131,6 +131,7 @@ Deno.serve(async (req: Request) => {
       calories: Math.round(sum('calories')),
       protein: Math.round(sum('protein_g')),
       carbs: Math.round(sum('carbs_g')),
+      fat: Math.round(sum('fat_g')),
       good_fat: Math.round(sum('healthy_fat_g')),
       veg: Math.round(sum('veg_servings') * 10) / 10,
     };
@@ -148,7 +149,7 @@ Deno.serve(async (req: Request) => {
         ].filter(Boolean).join(' ');
         lines.push(`- ${m.meal_type}: ${m.food_name} (${macros})`);
       }
-      lines.push(`Running totals: ${totals.calories} kcal, protein ${totals.protein}g, carbs ${totals.carbs}g, good fat ${totals.good_fat}g, veg ${totals.veg} servings`);
+      lines.push(`Running totals: ${totals.calories} kcal, protein ${totals.protein}g, carbs ${totals.carbs}g, fat ${totals.fat}g (of which healthy ${totals.good_fat}g), veg ${totals.veg} servings`);
     } else {
       lines.push('No meals logged yet today.');
     }
@@ -167,7 +168,7 @@ Deno.serve(async (req: Request) => {
     remain('Calories', totals.calories, tgt('target_calories'), 'kcal');
     remain('Protein', totals.protein, tgt('target_protein_g'), 'g');
     remain('Carbs', totals.carbs, tgt('target_carbs_g'), 'g');
-    remain('Good fat', totals.good_fat, tgt('target_fat_g'), 'g');
+    remain('Fat', totals.fat, tgt('target_fat_g'), 'g');
     remain('Vegetables', totals.veg, tgt('target_veg_servings'), 'servings');
     const targetsBlock = targetLines.length
       ? `\n\nDaily targets and what's left:\n${targetLines.join('\n')}`
