@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { Timer } from 'lucide-react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Timer, Pencil } from 'lucide-react-native';
 import { COLORS, FONTS, SPACING, RADIUS } from '@/lib/theme';
 import { ProgressBar } from '@/components/UI';
 import { useI18n } from '@/lib/i18n';
@@ -27,7 +27,7 @@ function nowMinutes(): number {
 
 // Live 16:8 (or any) eating-window status. start/end are "HH:MM" local times,
 // with the eating window during the day (start < end) and fasting overnight.
-export function FastingCard({ start, end }: { start: string; end: string }) {
+export function FastingCard({ start, end, onEdit }: { start: string; end: string; onEdit?: () => void }) {
   const { t } = useI18n();
   const [now, setNow] = useState(nowMinutes);
 
@@ -61,15 +61,16 @@ export function FastingCard({ start, end }: { start: string; end: string }) {
   }
 
   return (
-    <View style={styles.card}>
+    <TouchableOpacity style={styles.card} activeOpacity={onEdit ? 0.7 : 1} onPress={onEdit} disabled={!onEdit}>
       <View style={styles.head}>
         <Timer size={16} color={color} />
         <Text style={styles.title}>{t('16:8 Fasting')}</Text>
         <Text style={styles.window}>{start}–{end}</Text>
+        {onEdit ? <Pencil size={13} color={COLORS.charcoalMuted} /> : null}
       </View>
       <Text style={[styles.status, { color }]}>{status} · {detail}</Text>
       <ProgressBar value={value} max={max} color={color} height={7} />
-    </View>
+    </TouchableOpacity>
   );
 }
 

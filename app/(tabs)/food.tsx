@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   RefreshControl,
 } from 'react-native';
-import { Plus, Trash2, Coffee, Sun, Moon, Apple, Sparkles, Camera, ChevronRight, ChevronLeft } from 'lucide-react-native';
+import { Plus, Trash2, Coffee, Sun, Moon, Apple, Sparkles, Camera, ChevronRight, ChevronLeft, ChevronDown, ChevronUp, Utensils } from 'lucide-react-native';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOW } from '@/lib/theme';
 import { SectionCard } from '@/components/Cards';
 import { ModalSheet, ProgressBar } from '@/components/UI';
@@ -21,6 +21,7 @@ import { CoachCard } from '@/components/CoachCard';
 import { FastingCard } from '@/components/FastingCard';
 import { pickMealImage } from '@/lib/imagePicker';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/lib/supabase';
 import { useI18n } from '@/lib/i18n';
 import { todayStr, shiftDate, formatDisplayDate, sanitizeDecimalInput, parseNumericInput } from '@/lib/utils';
 import { MEAL_PRESETS, type MealPreset } from '@/lib/mealPresets';
@@ -43,7 +44,10 @@ export default function FoodScreen() {
   const [viewDate, setViewDate] = useState(todayStr());
   const isToday = viewDate === todayStr();
   const { byType, totals, loading, addMeal, updateMeal, deleteMeal, refresh } = useMeals(userId, viewDate);
-  const { targets, hasTargets, fasting } = useNutritionTargets(userId);
+  const { targets, hasTargets, fasting, refresh: refreshTargets } = useNutritionTargets(userId);
+  const [showFastingEdit, setShowFastingEdit] = useState(false);
+  const [fastingForm, setFastingForm] = useState({ start: '12:00', end: '20:00' });
+  const [savingFasting, setSavingFasting] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [mealType, setMealType] = useState<MealType>('breakfast');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -56,7 +60,8 @@ export default function FoodScreen() {
   const [aiDesc, setAiDesc] = useState('');
   const [aiGrams, setAiGrams] = useState('');
   const [aiNote, setAiNote] = useState('');
-  const [presetAdded, setPresetAdded] = useState<string | null>(null);
+  const [presetsOpen, setPresetsOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   const analysis = useMealAnalysis();
   const foodCoach = useCoach('food-coach');
 
@@ -68,7 +73,8 @@ export default function FoodScreen() {
     setAiDesc('');
     setAiGrams('');
     setAiNote('');
-    setPresetAdded(null);
+    setPresetsOpen(false);
+    setAiOpen(false);
     setShowAdd(true);
   };
 
@@ -122,25 +128,34 @@ export default function FoodScreen() {
     setAiNote(e.note || '');
   };
 
-  // One tap on a plan preset logs it immediately into this meal; the modal stays
-  // open (with a confirmation) so several items can be added in a row.
-  const addPreset = async (p: MealPreset) => {
-    const name = lang === 'zh' ? p.zh : p.en;
-    await addMeal({
-      log_date: viewDate,
-      meal_type: mealType,
-      food_name: name,
-      grams: p.grams,
-      calories: p.calories,
-      protein_g: p.protein,
-      carbs_g: p.carbs,
-      fat_g: p.fat,
-      healthy_fat_g: p.healthy_fat,
-      veg_servings: p.veg,
-      notes: null,
+  // Tapping a preset fills the form (visible right below) so grams/macros can be
+  // tweaked before saving; grams still rescales live.
+  const applyPreset = (p: MealPreset) => {
+    const s = (n: number | null) => (n != null ? String(n) : '');
+    setPer100(
+      p.grams && p.grams > 0
+        ? {
+            calories: (p.calories / p.grams) * 100,
+            protein_g: (p.protein / p.grams) * 100,
+            carbs_g: (p.carbs / p.grams) * 100,
+            fat_g: (p.fat / p.grams) * 100,
+            healthy_fat_g: (p.healthy_fat / p.grams) * 100,
+            veg_servings: (p.veg / p.grams) * 100,
+          }
+        : null
+    );
+    setForm({
+      food_name: lang === 'zh' ? p.zh : p.en,
+      grams: s(p.grams),
+      calories: String(p.calories),
+      protein_g: String(p.protein),
+      carbs_g: String(p.carbs),
+      fat_g: String(p.fat),
+      healthy_fat_g: String(p.healthy_fat),
+      veg_servings: String(p.veg),
     });
-    foodCoach.reset();
-    setPresetAdded(name);
+    setAiNote('');
+    setPresetsOpen(false);
   };
 
   // Editing grams rescales macros from the per-100g basis (exact arithmetic).
@@ -227,6 +242,23 @@ export default function FoodScreen() {
     setRefreshing(false);
   };
 
+  const openFastingEdit = () => {
+    setFastingForm({ start: fasting.start ?? '12:00', end: fasting.end ?? '20:00' });
+    setShowFastingEdit(true);
+  };
+
+  const saveFastingEdit = async (enabled: boolean) => {
+    if (!userId) return;
+    setSavingFasting(true);
+    await supabase.from('user_settings').upsert(
+      { user_id: userId, fasting_enabled: enabled, eating_window_start: fastingForm.start.trim() || null, eating_window_end: fastingForm.end.trim() || null },
+      { onConflict: 'user_id' }
+    );
+    setSavingFasting(false);
+    setShowFastingEdit(false);
+    refreshTargets();
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView
@@ -280,7 +312,7 @@ export default function FoodScreen() {
 
         {/* 16:8 fasting window status */}
         {isToday && fasting.enabled && fasting.start && fasting.end && (
-          <FastingCard start={fasting.start} end={fasting.end} />
+          <FastingCard start={fasting.start} end={fasting.end} onEdit={openFastingEdit} />
         )}
 
         {/* Nutrition coach — advice for the rest of today */}
@@ -324,52 +356,26 @@ export default function FoodScreen() {
       </ScrollView>
 
       <ModalSheet visible={showAdd} onClose={() => setShowAdd(false)} title={editingId ? t('Edit Food') : t('Add {x}', { x: t(MEAL_CONFIG[mealType].label) })}>
-        {/* Quick add from the plan — one tap logs it into this meal */}
+        {/* Quick add from the plan — collapsible; tap a chip to fill the form below */}
         {!editingId && (
-          <>
-            <Text style={styles.presetHead}>{t('Quick add from your plan')} · {t('tap to log')}</Text>
-            <View style={styles.presetWrap}>
-              {MEAL_PRESETS.map(p => (
-                <TouchableOpacity key={p.key} style={styles.presetChip} activeOpacity={0.7} onPress={() => addPreset(p)}>
-                  <Text style={styles.presetChipName}>{lang === 'zh' ? p.zh : p.en}</Text>
-                  <Text style={styles.presetChipCal}>{p.calories} kcal · P{p.protein}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            {presetAdded ? <Text style={styles.presetAdded}>{t('Added')}: {presetAdded} ✓</Text> : null}
-          </>
-        )}
-
-        {/* AI estimate */}
-        <View style={styles.aiBlock}>
-          <View style={styles.aiBlockHead}>
-            <Sparkles size={15} color={COLORS.rosePrimary} />
-            <Text style={styles.aiBlockTitle}>{t('Estimate with AI')}</Text>
-          </View>
-          <InputField
-            label={t('Describe the food (optional)')}
-            value={aiDesc}
-            onChangeText={setAiDesc}
-            placeholder={t('e.g. bowl of oatmeal with a banana')}
-          />
-          <InputField
-            label={t('Approx. amount (optional)')}
-            value={aiGrams}
-            onChangeText={v => setAiGrams(sanitizeDecimalInput(v))}
-            keyboardType="decimal-pad"
-            unit="g"
-            placeholder="e.g. 250"
-          />
-          <View style={styles.aiButtons}>
-            <PrimaryButton label={t('Estimate')} onPress={estimateFromText} loading={analysis.loading} variant="secondary" style={styles.aiBtn} />
-            <TouchableOpacity onPress={estimateFromPhoto} disabled={analysis.loading} style={styles.photoBtn} activeOpacity={0.8}>
-              <Camera size={16} color={COLORS.sageDark} />
-              <Text style={styles.photoBtnText}>{t('Photo')}</Text>
+          <View style={styles.collapseBlock}>
+            <TouchableOpacity style={styles.collapseHead} activeOpacity={0.7} onPress={() => setPresetsOpen(o => !o)}>
+              <Utensils size={15} color={COLORS.sageDark} />
+              <Text style={styles.collapseTitle}>{t('Quick add from your plan')}</Text>
+              {presetsOpen ? <ChevronUp size={16} color={COLORS.charcoalMuted} /> : <ChevronDown size={16} color={COLORS.charcoalMuted} />}
             </TouchableOpacity>
+            {presetsOpen && (
+              <View style={styles.presetWrap}>
+                {MEAL_PRESETS.map(p => (
+                  <TouchableOpacity key={p.key} style={styles.presetChip} activeOpacity={0.7} onPress={() => applyPreset(p)}>
+                    <Text style={styles.presetChipName}>{lang === 'zh' ? p.zh : p.en}</Text>
+                    <Text style={styles.presetChipCal}>{p.calories} kcal · P{p.protein}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </View>
-          {analysis.error && <Text style={styles.aiError}>{t(analysis.error)}</Text>}
-          {aiNote ? <Text style={styles.aiNote}>{aiNote} — {t('adjust the numbers below if needed.')}</Text> : null}
-        </View>
+        )}
 
         <InputField
           label={t('Food Name')}
@@ -436,7 +442,53 @@ export default function FoodScreen() {
           unit={t('servings')}
           placeholder="e.g. 1"
         />
+
+        {/* AI estimate — collapsible */}
+        <View style={styles.collapseBlock}>
+          <TouchableOpacity style={styles.collapseHead} activeOpacity={0.7} onPress={() => setAiOpen(o => !o)}>
+            <Sparkles size={15} color={COLORS.rosePrimary} />
+            <Text style={styles.collapseTitle}>{t('Estimate with AI')}</Text>
+            {aiOpen ? <ChevronUp size={16} color={COLORS.charcoalMuted} /> : <ChevronDown size={16} color={COLORS.charcoalMuted} />}
+          </TouchableOpacity>
+          {aiOpen && (
+            <>
+              <InputField
+                label={t('Describe the food (optional)')}
+                value={aiDesc}
+                onChangeText={setAiDesc}
+                placeholder={t('e.g. bowl of oatmeal with a banana')}
+              />
+              <InputField
+                label={t('Approx. amount (optional)')}
+                value={aiGrams}
+                onChangeText={v => setAiGrams(sanitizeDecimalInput(v))}
+                keyboardType="decimal-pad"
+                unit="g"
+                placeholder="e.g. 250"
+              />
+              <View style={styles.aiButtons}>
+                <PrimaryButton label={t('Estimate')} onPress={estimateFromText} loading={analysis.loading} variant="secondary" style={styles.aiBtn} />
+                <TouchableOpacity onPress={estimateFromPhoto} disabled={analysis.loading} style={styles.photoBtn} activeOpacity={0.8}>
+                  <Camera size={16} color={COLORS.sageDark} />
+                  <Text style={styles.photoBtnText}>{t('Photo')}</Text>
+                </TouchableOpacity>
+              </View>
+              {analysis.error && <Text style={styles.aiError}>{t(analysis.error)}</Text>}
+              {aiNote ? <Text style={styles.aiNote}>{aiNote} — {t('adjust the numbers below if needed.')}</Text> : null}
+            </>
+          )}
+        </View>
+
         <PrimaryButton label={editingId ? t('Save') : t('Add Food')} onPress={handleAdd} loading={saving} />
+      </ModalSheet>
+
+      <ModalSheet visible={showFastingEdit} onClose={() => setShowFastingEdit(false)} title={t('16:8 Fasting')}>
+        <InputField label={t('Eating window start')} value={fastingForm.start} onChangeText={v => setFastingForm(f => ({ ...f, start: v }))} placeholder="12:00" />
+        <InputField label={t('Eating window end')} value={fastingForm.end} onChangeText={v => setFastingForm(f => ({ ...f, end: v }))} placeholder="20:00" />
+        <PrimaryButton label={t('Save')} onPress={() => saveFastingEdit(true)} loading={savingFasting} />
+        <TouchableOpacity onPress={() => saveFastingEdit(false)} style={styles.fastingOff}>
+          <Text style={styles.fastingOffText}>{t('Turn off fasting')}</Text>
+        </TouchableOpacity>
       </ModalSheet>
     </SafeAreaView>
   );
@@ -644,6 +696,26 @@ const styles = StyleSheet.create({
     color: COLORS.charcoalMuted,
     marginTop: 2,
   },
+  collapseBlock: {
+    backgroundColor: COLORS.roseBeigeLight,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.roseBeige,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  collapseHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  collapseTitle: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 14,
+    color: COLORS.charcoalMed,
+    flex: 1,
+  },
   presetHead: {
     fontFamily: FONTS.semiBold,
     fontSize: 13,
@@ -678,6 +750,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.sageDark,
     marginBottom: SPACING.md,
+  },
+  fastingOff: {
+    alignItems: 'center',
+    paddingVertical: SPACING.md,
+  },
+  fastingOffText: {
+    fontFamily: FONTS.medium,
+    fontSize: 13,
+    color: COLORS.charcoalMuted,
   },
   aiBlock: {
     backgroundColor: COLORS.roseBeigeLight,
