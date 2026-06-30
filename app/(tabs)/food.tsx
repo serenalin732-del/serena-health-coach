@@ -16,16 +16,17 @@ import { InputField, PrimaryButton } from '@/components/Inputs';
 import { useMeals } from '@/hooks/useMeals';
 import { useNutritionTargets, type NutritionTargets } from '@/hooks/useNutritionTargets';
 import { useMealAnalysis, type MealEstimate } from '@/hooks/useMealAnalysis';
+import { usePantry } from '@/hooks/usePantry';
 import { useCoach } from '@/hooks/useCoach';
 import { CoachCard } from '@/components/CoachCard';
 import { FastingCard } from '@/components/FastingCard';
-import { pickMealImage } from '@/lib/imagePicker';
+import { pickMealImage, pickDocumentImage } from '@/lib/imagePicker';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import { useI18n } from '@/lib/i18n';
 import { todayStr, shiftDate, formatDisplayDate, sanitizeDecimalInput, parseNumericInput } from '@/lib/utils';
 import { MEAL_PRESETS, type MealPreset } from '@/lib/mealPresets';
-import type { MealLog } from '@/lib/types';
+import type { MealLog, PantryItem } from '@/lib/types';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
@@ -62,7 +63,10 @@ export default function FoodScreen() {
   const [aiNote, setAiNote] = useState('');
   const [presetsOpen, setPresetsOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
+  const [pantryOpen, setPantryOpen] = useState(false);
+  const [pantryQuery, setPantryQuery] = useState('');
   const analysis = useMealAnalysis();
+  const pantry = usePantry(userId);
   const foodCoach = useCoach('food-coach');
 
   const openAdd = (type: MealType) => {
@@ -75,6 +79,8 @@ export default function FoodScreen() {
     setAiNote('');
     setPresetsOpen(false);
     setAiOpen(false);
+    setPantryOpen(false);
+    setPantryQuery('');
     setShowAdd(true);
   };
 
@@ -156,6 +162,34 @@ export default function FoodScreen() {
     });
     setAiNote('');
     setPresetsOpen(false);
+  };
+
+  // Fill the form from a saved pantry product (per-100g); defaults to 100g.
+  const applyPantryItem = (item: PantryItem) => {
+    const c = item.calories_100 ?? 0;
+    const p = item.protein_100 ?? 0;
+    const cb = item.carbs_100 ?? 0;
+    const f = item.fat_100 ?? 0;
+    const hf = item.healthy_fat_100 ?? 0;
+    setPer100({ calories: c, protein_g: p, carbs_g: cb, fat_g: f, healthy_fat_g: hf, veg_servings: 0 });
+    setForm({
+      food_name: item.brand ? `${item.brand} ${item.name}` : item.name,
+      grams: '100',
+      calories: String(Math.round(c)),
+      protein_g: String(Math.round(p)),
+      carbs_g: String(Math.round(cb)),
+      fat_g: String(Math.round(f)),
+      healthy_fat_g: String(Math.round(hf)),
+      veg_servings: '0',
+    });
+    setAiNote('');
+    setPantryOpen(false);
+  };
+
+  const addPantryPhoto = async () => {
+    const image = await pickDocumentImage();
+    if (!image) return;
+    await pantry.addFromLabel(image);
   };
 
   // Editing grams rescales macros from the per-100g basis (exact arithmetic).
@@ -373,6 +407,41 @@ export default function FoodScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
+            )}
+          </View>
+        )}
+
+        {/* My pantry — saved label-scanned products, searchable */}
+        {!editingId && (
+          <View style={styles.collapseBlock}>
+            <TouchableOpacity style={styles.collapseHead} activeOpacity={0.7} onPress={() => setPantryOpen(o => !o)}>
+              <Apple size={15} color={COLORS.roseAccent} />
+              <Text style={styles.collapseTitle}>{t('My Pantry')}</Text>
+              {pantryOpen ? <ChevronUp size={16} color={COLORS.charcoalMuted} /> : <ChevronDown size={16} color={COLORS.charcoalMuted} />}
+            </TouchableOpacity>
+            {pantryOpen && (
+              <>
+                <InputField label="" value={pantryQuery} onChangeText={setPantryQuery} placeholder={t('Search your foods')} />
+                <View style={styles.presetWrap}>
+                  {pantry.search(pantryQuery).map(item => (
+                    <View key={item.id} style={styles.pantryChip}>
+                      <TouchableOpacity activeOpacity={0.7} onPress={() => applyPantryItem(item)}>
+                        <Text style={styles.presetChipName}>{item.brand ? `${item.brand} ${item.name}` : item.name}</Text>
+                        <Text style={styles.presetChipCal}>{item.calories_100 ?? '?'} kcal · P{item.protein_100 ?? '?'} /100g</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => pantry.remove(item.id)} style={styles.pantryDel}>
+                        <Trash2 size={13} color={COLORS.charcoalMuted} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                  {pantry.items.length === 0 && <Text style={styles.aiNote}>{t('No saved foods yet — add one by photographing a label.')}</Text>}
+                </View>
+                <TouchableOpacity onPress={addPantryPhoto} disabled={pantry.busy} style={styles.photoBtn} activeOpacity={0.8}>
+                  <Camera size={16} color={COLORS.sageDark} />
+                  <Text style={styles.photoBtnText}>{pantry.busy ? t('Reading label…') : t('Add food by label photo')}</Text>
+                </TouchableOpacity>
+                {pantry.error && <Text style={styles.aiError}>{t(pantry.error)}</Text>}
+              </>
             )}
           </View>
         )}
@@ -733,6 +802,19 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.lg,
     paddingHorizontal: 12,
     paddingVertical: 8,
+  },
+  pantryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: COLORS.creamDark,
+    borderRadius: RADIUS.lg,
+    paddingLeft: 12,
+    paddingRight: 8,
+    paddingVertical: 8,
+  },
+  pantryDel: {
+    padding: 4,
   },
   presetChipName: {
     fontFamily: FONTS.semiBold,
