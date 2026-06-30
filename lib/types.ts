@@ -135,6 +135,19 @@ export interface UserSettings {
   updated_at: string;
 }
 
+export interface PantryItem {
+  id: string;
+  user_id: string;
+  name: string;
+  brand: string | null;
+  calories_100: number | null;
+  protein_100: number | null;
+  carbs_100: number | null;
+  fat_100: number | null;
+  healthy_fat_100: number | null;
+  created_at: string;
+}
+
 export interface PushSubscriptionRow {
   id: string;
   user_id: string;
@@ -156,6 +169,7 @@ export interface Database {
       lab_results: { Row: LabResult; Insert: Partial<LabResult>; Update: Partial<LabResult> };
       cgm_logs: { Row: CgmLog; Insert: Partial<CgmLog>; Update: Partial<CgmLog> };
       user_settings: { Row: UserSettings; Insert: Partial<UserSettings>; Update: Partial<UserSettings> };
+      pantry_items: { Row: PantryItem; Insert: Partial<PantryItem>; Update: Partial<PantryItem> };
       push_subscriptions: { Row: PushSubscriptionRow; Insert: Partial<PushSubscriptionRow>; Update: Partial<PushSubscriptionRow> };
     };
   };
