@@ -190,6 +190,7 @@ const zh: Record<string, string> = {
   'Off': '关闭',
   'Set your daily eating window — the app shows live eating/fasting status & countdown.': '设置每天的进食窗口,App 会实时显示进食中/断食中和倒计时。',
   'Show fasting window': '显示断食窗口',
+  'Turn off fasting': '停用断食',
   'Eating window start': '进食开始',
   'Eating window end': '进食结束',
   'Eating window open': '进食窗口',
