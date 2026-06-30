@@ -56,6 +56,7 @@ export default function FoodScreen() {
   const [aiDesc, setAiDesc] = useState('');
   const [aiGrams, setAiGrams] = useState('');
   const [aiNote, setAiNote] = useState('');
+  const [presetAdded, setPresetAdded] = useState<string | null>(null);
   const analysis = useMealAnalysis();
   const foodCoach = useCoach('food-coach');
 
@@ -67,6 +68,7 @@ export default function FoodScreen() {
     setAiDesc('');
     setAiGrams('');
     setAiNote('');
+    setPresetAdded(null);
     setShowAdd(true);
   };
 
@@ -120,32 +122,25 @@ export default function FoodScreen() {
     setAiNote(e.note || '');
   };
 
-  // One-tap fill from a plan preset; grams (when present) still rescales live.
-  const applyPreset = (p: MealPreset) => {
-    const s = (n: number | null) => (n != null ? String(n) : '');
-    setPer100(
-      p.grams && p.grams > 0
-        ? {
-            calories: (p.calories / p.grams) * 100,
-            protein_g: (p.protein / p.grams) * 100,
-            carbs_g: (p.carbs / p.grams) * 100,
-            fat_g: (p.fat / p.grams) * 100,
-            healthy_fat_g: (p.healthy_fat / p.grams) * 100,
-            veg_servings: (p.veg / p.grams) * 100,
-          }
-        : null
-    );
-    setForm({
-      food_name: lang === 'zh' ? p.zh : p.en,
-      grams: s(p.grams),
-      calories: String(p.calories),
-      protein_g: String(p.protein),
-      carbs_g: String(p.carbs),
-      fat_g: String(p.fat),
-      healthy_fat_g: String(p.healthy_fat),
-      veg_servings: String(p.veg),
+  // One tap on a plan preset logs it immediately into this meal; the modal stays
+  // open (with a confirmation) so several items can be added in a row.
+  const addPreset = async (p: MealPreset) => {
+    const name = lang === 'zh' ? p.zh : p.en;
+    await addMeal({
+      log_date: viewDate,
+      meal_type: mealType,
+      food_name: name,
+      grams: p.grams,
+      calories: p.calories,
+      protein_g: p.protein,
+      carbs_g: p.carbs,
+      fat_g: p.fat,
+      healthy_fat_g: p.healthy_fat,
+      veg_servings: p.veg,
+      notes: null,
     });
-    setAiNote('');
+    foodCoach.reset();
+    setPresetAdded(name);
   };
 
   // Editing grams rescales macros from the per-100g basis (exact arithmetic).
@@ -329,16 +324,21 @@ export default function FoodScreen() {
       </ScrollView>
 
       <ModalSheet visible={showAdd} onClose={() => setShowAdd(false)} title={editingId ? t('Edit Food') : t('Add {x}', { x: t(MEAL_CONFIG[mealType].label) })}>
-        {/* Quick add from the plan */}
-        <Text style={styles.presetHead}>{t('Quick add from your plan')}</Text>
-        <View style={styles.presetWrap}>
-          {MEAL_PRESETS.map(p => (
-            <TouchableOpacity key={p.key} style={styles.presetChip} activeOpacity={0.7} onPress={() => applyPreset(p)}>
-              <Text style={styles.presetChipName}>{lang === 'zh' ? p.zh : p.en}</Text>
-              <Text style={styles.presetChipCal}>{p.calories} kcal · P{p.protein}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        {/* Quick add from the plan — one tap logs it into this meal */}
+        {!editingId && (
+          <>
+            <Text style={styles.presetHead}>{t('Quick add from your plan')} · {t('tap to log')}</Text>
+            <View style={styles.presetWrap}>
+              {MEAL_PRESETS.map(p => (
+                <TouchableOpacity key={p.key} style={styles.presetChip} activeOpacity={0.7} onPress={() => addPreset(p)}>
+                  <Text style={styles.presetChipName}>{lang === 'zh' ? p.zh : p.en}</Text>
+                  <Text style={styles.presetChipCal}>{p.calories} kcal · P{p.protein}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {presetAdded ? <Text style={styles.presetAdded}>{t('Added')}: {presetAdded} ✓</Text> : null}
+          </>
+        )}
 
         {/* AI estimate */}
         <View style={styles.aiBlock}>
@@ -672,6 +672,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: COLORS.charcoalMuted,
     marginTop: 1,
+  },
+  presetAdded: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 13,
+    color: COLORS.sageDark,
+    marginBottom: SPACING.md,
   },
   aiBlock: {
     backgroundColor: COLORS.roseBeigeLight,

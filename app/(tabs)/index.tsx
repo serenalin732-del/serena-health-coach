@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
+import { useFocusEffect } from 'expo-router';
 import {
   View,
   Text,
@@ -102,13 +103,24 @@ export default function DashboardScreen() {
   const { log, habits, loading, saving, saveLog, toggleHabit, completedCount, totalHabits, completionPct, dailyScore, refresh } = useDailyLog(userId, viewDate);
   // Protein shown on the dashboard is summed from the day's logged meals so it
   // tracks what was actually eaten; the manual metric field is the fallback.
-  const { totals: mealTotals } = useMeals(userId, viewDate);
+  const { totals: mealTotals, refresh: refreshMeals } = useMeals(userId, viewDate);
   const proteinValue = mealTotals.protein > 0
     ? Math.round(mealTotals.protein)
     : log?.protein_g ? Math.round(log.protein_g) : null;
   const week = useWeeklySummary(userId);
   const coach = useCoach();
   const { latest: latestCycle } = useCycleLogs(userId);
+
+  // Refetch when this tab regains focus so meals/metrics logged on another tab
+  // (e.g. protein from the Food page) show up here without a full reload.
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+      refreshMeals();
+      week.refresh();
+    }, [refresh, refreshMeals, week.refresh])
+  );
+
   const { t } = useI18n();
   const { prefs } = usePrefs();
   // Cycle day comes from the Health page's period log (synced), falling back
